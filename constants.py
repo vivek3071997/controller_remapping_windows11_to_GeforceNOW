@@ -87,8 +87,8 @@ AXIS_RY   = 3  # Right stick vertical
 AXIS_LT   = 4  # Left trigger  (–1 … +1, rest = –1)
 AXIS_RT   = 5  # Right trigger (–1 … +1, rest = –1)
 
-# Trigger dead zone — treat >0.5 as "pressed" for digital-style actions
-TRIGGER_DIGITAL_THRESHOLD = 0.5
+# Trigger dead zone — treat >0.15 as "pressed" for digital-style actions
+TRIGGER_DIGITAL_THRESHOLD = 0.15
 
 # Left-stick forward threshold for horse acceleration detection
 HORSE_ACCEL_STICK_THRESHOLD = -0.80

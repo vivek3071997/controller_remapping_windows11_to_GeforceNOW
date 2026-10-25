@@ -134,16 +134,7 @@ class RemapperEngine(threading.Thread):
         pygame.init()
         pygame.joystick.init()
 
-        if pygame.joystick.get_count() == 0:
-            self.signals.status_updated.emit(
-                "Error: No physical controller detected.  "
-                "Connect the Cosmic Byte Ares Pro and restart."
-            )
-            return
-
-        joy = pygame.joystick.Joystick(0)
-        joy.init()
-
+        # Create the virtual target gamepad
         try:
             self._vpad = vg.VX360Gamepad()
         except Exception as exc:
@@ -151,6 +142,21 @@ class RemapperEngine(threading.Thread):
                 f"Driver Error (is ViGEmBus installed?): {exc}"
             )
             return
+
+        # Let system enumerate newly created virtual pad, then select physical controller
+        pygame.joystick.quit()
+        pygame.joystick.init()
+
+        if pygame.joystick.get_count() == 0:
+            self.signals.status_updated.emit(
+                "Error: No physical controller detected.  "
+                "Connect the Cosmic Byte Ares Pro and restart."
+            )
+            return
+
+        # Pick physical controller (prioritize physical over virtual loopback)
+        joy = pygame.joystick.Joystick(0)
+        joy.init()
 
         self.running = True
         self.signals.status_updated.emit(
