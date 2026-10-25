@@ -1,0 +1,236 @@
+{
+    "profiles": [
+        {
+            "name": "General Gamepad (Default)",
+            "description": "Standard 1:1 pass-through with low latency",
+            "button_mapping": {
+                "A": "A",
+                "B": "B",
+                "X": "X",
+                "Y": "Y",
+                "LB": "LB",
+                "RB": "RB",
+                "LT": "LT",
+                "RT": "RT",
+                "LS": "LS",
+                "RS": "RS",
+                "START": "START",
+                "BACK": "BACK",
+                "Up": "Up",
+                "Down": "Down",
+                "Left": "Left",
+                "Right": "Right"
+            },
+            "button_actions": {
+                "A": "Primary Action / Select / Jump",
+                "B": "Cancel / Crouch / Dodge",
+                "X": "Interact / Reload / Attack",
+                "Y": "Switch Weapon / Heavy Attack",
+                "LB": "Left Bumper / Secondary Skill",
+                "RB": "Right Bumper / Melee / Ability",
+                "LT": "Aim Down Sights / Block / Guard",
+                "RT": "Fire Weapon / Primary Attack",
+                "LS": "Click Left Stick / Sprint",
+                "RS": "Click Right Stick / Melee / Camera Reset",
+                "START": "Pause Menu / Options",
+                "BACK": "Map / Inventory / Scoreboard",
+                "Up": "D-Pad Up / Quick Item 1",
+                "Down": "D-Pad Down / Quick Item 2",
+                "Left": "D-Pad Left / Next Weapon",
+                "Right": "D-Pad Right / Prev Weapon"
+            },
+            "macros": [
+                {
+                    "name": "Quick Dodge (Double Tap B)",
+                    "trigger_type": "double_tap",
+                    "trigger_buttons": [
+                        "B"
+                    ],
+                    "output_sequence": [
+                        "B"
+                    ],
+                    "hold_duration_ms": 120,
+                    "interval_ms": 40
+                }
+            ]
+        },
+        {
+            "name": "The Witcher 3: Wild Hunt",
+            "description": "Optimized combat layout with instant quicksign & dodge swap",
+            "button_mapping": {
+                "A": "A",
+                "B": "B",
+                "X": "X",
+                "Y": "Y",
+                "LB": "LB",
+                "RB": "RB",
+                "LT": "LT",
+                "RT": "RT",
+                "LS": "LS",
+                "RS": "RS",
+                "START": "START",
+                "BACK": "BACK",
+                "Up": "Up",
+                "Down": "Down",
+                "Left": "Left",
+                "Right": "Right"
+            },
+            "button_actions": {
+                "A": "Interact / Roll / Horse Canter",
+                "B": "Dodge / Dive Up / Jump",
+                "X": "Fast Attack / Dive Down",
+                "Y": "Strong Attack",
+                "LB": "Radial Menu (Signs & Bombs)",
+                "RB": "Cast Quick Bomb / Pocket Item",
+                "LT": "Witcher Senses / Parry / Guard",
+                "RT": "Cast Selected Witcher Sign",
+                "LS": "Sprint / Call Roach (Horse)",
+                "RS": "Lock-On Target / Track Quest",
+                "START": "Game Pause Menu",
+                "BACK": "Inventory / Character / Map",
+                "Up": "Drink Potion / Food Slot 1",
+                "Down": "Drink Potion / Food Slot 2",
+                "Left": "Draw / Sheathe Silver Sword",
+                "Right": "Draw / Sheathe Steel Sword"
+            },
+            "macros": [
+                {
+                    "name": "Aard Combo (LB + X)",
+                    "trigger_type": "combo",
+                    "trigger_buttons": [
+                        "LB",
+                        "X"
+                    ],
+                    "output_sequence": [
+                        "RT"
+                    ],
+                    "hold_duration_ms": 150,
+                    "interval_ms": 50
+                },
+                {
+                    "name": "Double Tap Roll (Double Tap A)",
+                    "trigger_type": "double_tap",
+                    "trigger_buttons": [
+                        "A"
+                    ],
+                    "output_sequence": [
+                        "B"
+                    ],
+                    "hold_duration_ms": 120,
+                    "interval_ms": 40
+                }
+            ]
+        },
+        {
+            "name": "Cyberpunk 2077",
+            "description": "Night City combat setup with tactical dash & weapon hotkeys",
+            "button_mapping": {
+                "A": "A",
+                "B": "B",
+                "X": "X",
+                "Y": "Y",
+                "LB": "LB",
+                "RB": "RB",
+                "LT": "LT",
+                "RT": "RT",
+                "LS": "LS",
+                "RS": "RS",
+                "START": "START",
+                "BACK": "BACK",
+                "Up": "Up",
+                "Down": "Down",
+                "Left": "Left",
+                "Right": "Right"
+            },
+            "button_actions": {
+                "A": "Jump / Mantle",
+                "B": "Crouch / Slide / Dodge",
+                "X": "Reload Weapon / Interact",
+                "Y": "Cycle Weapon / Holster (Double-Tap)",
+                "LB": "Combat Cyberware / Grenade",
+                "RB": "Sandevistan / Berserk / Quickhack",
+                "LT": "Aim Down Sights / Block",
+                "RT": "Fire Weapon / Strong Melee",
+                "LS": "Sprint",
+                "RS": "Quick Melee Attack / Camera Reset",
+                "START": "Pause / Game Settings",
+                "BACK": "Hub Menu (Inventory, Map, Journal)",
+                "Up": "Use Inhaler / MaxDoc Healing",
+                "Down": "Phone / Contacts",
+                "Left": "Radio / Vehicle Controls",
+                "Right": "Call Vehicle"
+            },
+            "macros": [
+                {
+                    "name": "Fast Dash (Double Tap B)",
+                    "trigger_type": "double_tap",
+                    "trigger_buttons": [
+                        "B"
+                    ],
+                    "output_sequence": [
+                        "B",
+                        "B"
+                    ],
+                    "hold_duration_ms": 80,
+                    "interval_ms": 40
+                }
+            ]
+        },
+        {
+            "name": "Elden Ring / Souls-like",
+            "description": "Optimized for two-handing weapon macro & heavy attack combo",
+            "button_mapping": {
+                "A": "A",
+                "B": "B",
+                "X": "X",
+                "Y": "Y",
+                "LB": "LB",
+                "RB": "RB",
+                "LT": "LT",
+                "RT": "RT",
+                "LS": "LS",
+                "RS": "RS",
+                "START": "START",
+                "BACK": "BACK",
+                "Up": "Up",
+                "Down": "Down",
+                "Left": "Left",
+                "Right": "Right"
+            },
+            "button_actions": {
+                "A": "Jump",
+                "B": "Roll / Backstep / Sprint (Hold)",
+                "X": "Use Equipped Quick Item (Flask)",
+                "Y": "Interact / Event Action / Two-Hand Stance",
+                "LB": "Guard / Left Hand Skill",
+                "RB": "Right Hand Light Attack",
+                "LT": "Ash of War / Weapon Skill",
+                "RT": "Right Hand Heavy Attack / Charge",
+                "LS": "Crouch / Stealth Mode",
+                "RS": "Lock-On Target / Camera Reset",
+                "START": "Equipment & Game Menu",
+                "BACK": "Map",
+                "Up": "Cycle Sorcery / Incantation",
+                "Down": "Cycle Equipped Item",
+                "Left": "Cycle Left Armament",
+                "Right": "Cycle Right Armament"
+            },
+            "macros": [
+                {
+                    "name": "Two-Hand Weapon (Y + RB)",
+                    "trigger_type": "combo",
+                    "trigger_buttons": [
+                        "Y",
+                        "RB"
+                    ],
+                    "output_sequence": [
+                        "Y",
+                        "RB"
+                    ],
+                    "hold_duration_ms": 120,
+                    "interval_ms": 50
+                }
+            ]
+        }
+    ]
+}

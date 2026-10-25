@@ -256,14 +256,20 @@ HTML_DASHBOARD = """
             border-radius: 8px;
             padding: 0.65rem 0.85rem;
             display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .remap-slot-header {
+            display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
-        .remap-slot span {
+        .remap-slot span.btn-name {
             font-weight: 700;
             font-size: 0.85rem;
-            color: #334155;
+            color: #0F172A;
         }
 
         .remap-slot select {
@@ -274,6 +280,19 @@ HTML_DASHBOARD = """
             font-weight: 700;
             padding: 0.35rem 0.55rem;
             outline: none;
+        }
+
+        .action-desc-badge {
+            background: #F1F5F9;
+            color: #0284C7;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #E2E8F0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .table-responsive {
@@ -447,15 +466,22 @@ HTML_DASHBOARD = """
     function renderMapping() {
         const grid = document.getElementById('remapGrid');
         grid.innerHTML = '';
+        const actions = currentProfile.button_actions || {};
         CONTROLLER_BUTTONS.forEach(btn => {
             const target = currentProfile.button_mapping[btn] || btn;
+            const actionText = actions[target] || target;
             const slot = document.createElement('div');
             slot.className = 'remap-slot';
             slot.innerHTML = `
-                <span>[${btn}] ➔</span>
-                <select onchange="updateButtonMap('${btn}', this.value)">
-                    ${BUTTON_OPTIONS.map(opt => `<option value="${opt}" ${opt === target ? 'selected' : ''}>${opt}</option>`).join('')}
-                </select>
+                <div class="remap-slot-header">
+                    <span class="btn-name">[${btn}] ➔</span>
+                    <select onchange="updateButtonMap('${btn}', this.value)">
+                        ${BUTTON_OPTIONS.map(opt => `<option value="${opt}" ${opt === target ? 'selected' : ''}>${opt}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="action-desc-badge" id="actionDesc_${btn}" title="${actionText}">
+                    Action: ${actionText}
+                </div>
             `;
             grid.appendChild(slot);
         });
@@ -479,6 +505,13 @@ HTML_DASHBOARD = """
 
     function updateButtonMap(btn, val) {
         currentProfile.button_mapping[btn] = val;
+        const actions = currentProfile.button_actions || {};
+        const actionText = actions[val] || val;
+        const badge = document.getElementById(`actionDesc_${btn}`);
+        if (badge) {
+            badge.innerText = `Action: ${actionText}`;
+            badge.title = actionText;
+        }
     }
 
     async function saveCurrentProfile() {
@@ -621,6 +654,7 @@ def get_profiles():
             "name": p.name,
             "description": p.description,
             "button_mapping": p.button_mapping,
+            "button_actions": p.button_actions,
             "macros": p.macros
         }
         for p in profile_mgr.profiles.values()
@@ -633,6 +667,7 @@ def save_profile():
         name=data["name"],
         description=data.get("description", ""),
         button_mapping=data.get("button_mapping", {}),
+        button_actions=data.get("button_actions", {}),
         macros=data.get("macros", [])
     )
     profile_mgr.save_profile(profile)

@@ -198,6 +198,7 @@ class WitcherRemapperUI(QMainWindow):
         self.signals.status_updated.connect(self._on_status)
         self._engine: RemapperEngine | None = None
         self._dropdowns: dict[str, QComboBox] = {}
+        self._action_labels: dict[str, QLabel] = {}
 
         # RGB Strip Animation State
         self.rgb_hue = 0.0
@@ -290,19 +291,37 @@ class WitcherRemapperUI(QMainWindow):
 
         row, col = 0, 0
         for btn in CONTROLLER_BUTTONS:
-            cell = QHBoxLayout()
+            cell = QVBoxLayout()
+            cell.setSpacing(3)
+
+            # Top row: Physical label + combo selector
+            selector_row = QHBoxLayout()
             lbl = QLabel(f"<b>[{btn}]</b>  ➔")
-            lbl.setFixedWidth(70)
-            lbl.setStyleSheet("color: #334155; font-size: 12px;")
+            lbl.setFixedWidth(65)
+            lbl.setStyleSheet("color: #0F172A; font-size: 12px;")
 
             combo = QComboBox()
             combo.addItems(BUTTON_OPTIONS)
             combo.setCurrentText(btn)
-            combo.setFixedWidth(85)
+            combo.setFixedWidth(75)
+            combo.currentTextChanged.connect(lambda _, b=btn: self._update_single_action_label(b))
             self._dropdowns[btn] = combo
 
-            cell.addWidget(lbl)
-            cell.addWidget(combo)
+            selector_row.addWidget(lbl)
+            selector_row.addWidget(combo)
+            selector_row.addStretch()
+            cell.addLayout(selector_row)
+
+            # Action description badge
+            act_lbl = QLabel("")
+            act_lbl.setStyleSheet(
+                "background-color: #F1F5F9; color: #0284C7; font-size: 11px; "
+                "font-weight: 600; padding: 2px 6px; border-radius: 4px; border: 1px solid #E2E8F0;"
+            )
+            act_lbl.setWordWrap(True)
+            self._action_labels[btn] = act_lbl
+            cell.addWidget(act_lbl)
+
             grid_layout.addLayout(cell, row, col)
 
             col += 1
@@ -403,10 +422,22 @@ class WitcherRemapperUI(QMainWindow):
         self.current_profile = self.profile_mgr.get_profile(p_name)
         self._load_profile_into_ui(self.current_profile)
 
+    def _update_single_action_label(self, btn: str):
+        if btn not in self._dropdowns or btn not in self._action_labels:
+            return
+        target = self._dropdowns[btn].currentText()
+        action_desc = self.current_profile.button_actions.get(target, target)
+        self._action_labels[btn].setText(f"Action: {action_desc}")
+
     def _load_profile_into_ui(self, profile: GameProfile):
         for btn, combo in self._dropdowns.items():
             target = profile.button_mapping.get(btn, btn)
+            combo.blockSignals(True)
             combo.setCurrentText(target)
+            combo.blockSignals(False)
+            action_desc = profile.button_actions.get(target, target)
+            if btn in self._action_labels:
+                self._action_labels[btn].setText(f"Action: {action_desc}")
 
         self.macro_table.setRowCount(0)
         for m in profile.macros:
