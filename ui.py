@@ -220,6 +220,16 @@ class WitcherRemapperUI(QMainWindow):
         self.rgb_timer.start(35) # ~30 FPS light wave
 
         self._init_ui()
+        self._start_background_monitor()
+
+    def _start_background_monitor(self):
+        try:
+            self._engine = RemapperEngine(self.signals)
+            self._engine.update_config(self._get_engine_config())
+            self._engine.remapping_active = False
+            self._engine.start()
+        except Exception as e:
+            self.status_bar.setText(f"Visualizer Note: {e}")
 
     def _init_ui(self):
         self.setWindowTitle("GeForce NOW Controller Remapper PC")
@@ -476,7 +486,7 @@ class WitcherRemapperUI(QMainWindow):
 
     # ─── DYNAMIC RGB LIGHTBAR ANIMATION ─────────────────────────────
     def _animate_rgb_strip(self):
-        is_running = self._engine is not None and self._engine.running
+        is_running = self._engine is not None and self._engine.remapping_active
 
         if is_running:
             # Active Remapping: Chromatic vibrant neon flow
@@ -724,10 +734,12 @@ class WitcherRemapperUI(QMainWindow):
         )
 
     def _toggle_engine(self):
-        if self._engine and self._engine.running:
-            # STOP
-            self._engine.stop()
-            self._engine = None
+        if self._engine is None or not self._engine.is_alive():
+            self._start_background_monitor()
+
+        if self._engine.remapping_active:
+            # STOP REMAPPING (Visualizer test mode stays active)
+            self._engine.remapping_active = False
 
             if self.chk_hidhide.isChecked() and hidhide.is_hidhide_available():
                 hidhide.disable_hidhide_cloaking()
@@ -735,20 +747,20 @@ class WitcherRemapperUI(QMainWindow):
             self.btn_run.setText("▶ RUN REMAPPER")
             self.btn_run.setObjectName("btn_run")
             self.btn_run.setStyleSheet("")
-            self.status_bar.setText("Status: Remapper stopped. Physical gamepad restored.")
+            self.status_bar.setText("Status: Remapper stopped. Visualizer test mode active.")
         else:
-            # START
+            # START REMAPPING
             if self.chk_hidhide.isChecked() and hidhide.is_hidhide_available():
                 self.status_bar.setText("Status: Cloaking physical controller with HidHide...")
                 hidhide.setup_hidhide_for_remapper()
 
-            self._engine = RemapperEngine(self.signals)
             self._engine.update_config(self._get_engine_config())
-            self._engine.start()
+            self._engine.remapping_active = True
 
             self.btn_run.setText("■ STOP REMAPPER")
             self.btn_run.setObjectName("btn_stop")
             self.btn_run.setStyleSheet("")
+            self.status_bar.setText("Status: Active -- Intercepting & Remapping to Virtual Xbox 360")
 
     def _on_status(self, msg: str):
         self.status_bar.setText(msg)

@@ -60,12 +60,12 @@
             "button_mapping": {
                 "A": "A",
                 "B": "B",
-                "X": "X",
-                "Y": "Y",
-                "LB": "LB",
-                "RB": "RB",
-                "LT": "LT",
-                "RT": "RT",
+                "X": "RT",
+                "Y": "RB",
+                "LB": "LT",
+                "RB": "X",
+                "LT": "LB",
+                "RT": "Y",
                 "LS": "LS",
                 "RS": "RS",
                 "START": "START",
@@ -78,46 +78,46 @@
             "button_actions": {
                 "A": "Interact / Roll / Horse Canter",
                 "B": "Dodge / Dive Up / Jump",
-                "X": "Fast Attack / Dive Down",
-                "Y": "Strong Attack",
-                "LB": "Radial Menu (Signs & Bombs)",
-                "RB": "Cast Quick Bomb / Pocket Item",
-                "LT": "Witcher Senses / Parry / Guard",
-                "RT": "Cast Selected Witcher Sign",
-                "LS": "Sprint / Call Roach (Horse)",
-                "RS": "Lock-On Target / Track Quest",
-                "START": "Game Pause Menu",
                 "BACK": "Inventory / Character / Map",
-                "Up": "Drink Potion / Food Slot 1",
                 "Down": "Drink Potion / Food Slot 2",
+                "LB": "Radial Menu (Signs & Bombs)",
+                "LS": "Sprint / Call Roach (Horse)",
+                "LT": "Witcher Senses / Parry / Guard",
                 "Left": "Draw / Sheathe Silver Sword",
-                "Right": "Draw / Sheathe Steel Sword"
+                "RB": "Cast Quick Bomb / Pocket Item",
+                "RS": "Lock-On Target / Track Quest",
+                "RT": "Cast Selected Witcher Sign",
+                "Right": "Draw / Sheathe Steel Sword",
+                "START": "Game Pause Menu",
+                "Up": "Drink Potion / Food Slot 1",
+                "X": "Fast Attack / Dive Down",
+                "Y": "Strong Attack"
             },
             "macros": [
                 {
+                    "hold_duration_ms": 150,
+                    "interval_ms": 50,
                     "name": "Aard Combo (LB + X)",
-                    "trigger_type": "combo",
+                    "output_sequence": [
+                        "RT"
+                    ],
                     "trigger_buttons": [
                         "LB",
                         "X"
                     ],
-                    "output_sequence": [
-                        "RT"
-                    ],
-                    "hold_duration_ms": 150,
-                    "interval_ms": 50
+                    "trigger_type": "combo"
                 },
                 {
+                    "hold_duration_ms": 120,
+                    "interval_ms": 40,
                     "name": "Double Tap Roll (Double Tap A)",
-                    "trigger_type": "double_tap",
-                    "trigger_buttons": [
-                        "A"
-                    ],
                     "output_sequence": [
                         "B"
                     ],
-                    "hold_duration_ms": 120,
-                    "interval_ms": 40
+                    "trigger_buttons": [
+                        "A"
+                    ],
+                    "trigger_type": "double_tap"
                 }
             ]
         },

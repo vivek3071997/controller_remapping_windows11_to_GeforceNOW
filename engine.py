@@ -76,6 +76,7 @@ class RemapperEngine(threading.Thread):
         super().__init__(daemon=True)
         self.signals = signals
         self.running = False
+        self.remapping_active = False
         self._config = EngineConfig()
         self._config_lock = threading.Lock()
 
@@ -102,81 +103,89 @@ class RemapperEngine(threading.Thread):
 
     def run(self) -> None:
         global CURRENT_TELEMETRY
-        pygame.init()
-        pygame.joystick.init()
-
-        if pygame.joystick.get_count() == 0:
-            self.signals.status_updated.emit("Error: No physical controller found.")
-            CURRENT_TELEMETRY["connected"] = False
-            CURRENT_TELEMETRY["controller_name"] = "No controller detected"
-            return
-
-        # Initialize physical gamepad FIRST
-        joy = pygame.joystick.Joystick(0)
-        joy.init()
-
-        # Create virtual Xbox 360 controller
-        try:
-            self._vpad = vg.VX360Gamepad()
-        except Exception as exc:
-            self.signals.status_updated.emit(f"ViGEmBus Error: {exc}")
-            return
-
-        ctrl_name = joy.get_name()
         self.running = True
-        self.signals.status_updated.emit(f"Active -- Remapping '{ctrl_name}' -> Virtual Xbox 360")
 
-        CURRENT_TELEMETRY.update({
-            "connected": True,
-            "controller_name": ctrl_name,
-            "buttons_num": joy.get_numbuttons(),
-            "axes_num": joy.get_numaxes(),
-            "hats_num": joy.get_numhats()
-        })
-
-        # Prime event pump to calibrate resting axis baseline
-        pygame.event.pump()
-        time.sleep(0.05)
+        try:
+            pygame.init()
+            pygame.joystick.init()
+        except Exception:
+            pass
 
         last_telemetry_emit = 0.0
+        last_hotplug_check = 0.0
+        joy: pygame.joystick.Joystick | None = None
+        ctrl_name = "Connected Gamepad"
 
         while self.running:
-            pygame.event.pump()
-            cfg = self._get_config()
             now = time.monotonic()
+            try:
+                pygame.event.pump()
+            except Exception:
+                pass
 
-            # ─── 1. Read Physical Controller Inputs ──────────────────
+            # Hotplug handling: if no joystick, recheck every 0.8s
+            if joy is None or pygame.joystick.get_count() == 0:
+                if now - last_hotplug_check >= 0.8:
+                    last_hotplug_check = now
+                    try:
+                        pygame.joystick.quit()
+                        pygame.joystick.init()
+                        if pygame.joystick.get_count() > 0:
+                            joy = pygame.joystick.Joystick(0)
+                            joy.init()
+                            ctrl_name = joy.get_name()
+                            CURRENT_TELEMETRY["connected"] = True
+                            CURRENT_TELEMETRY["controller_name"] = ctrl_name
+                            self.signals.status_updated.emit(f"Connected: '{ctrl_name}'")
+                            time.sleep(0.05)
+                            pygame.event.pump()
+                        else:
+                            CURRENT_TELEMETRY["connected"] = False
+                            CURRENT_TELEMETRY["controller_name"] = "No controller detected"
+                    except Exception:
+                        pass
+
+                if joy is None or pygame.joystick.get_count() == 0:
+                    time.sleep(0.05)
+                    continue
+
+            # Read physical controller inputs
+            cfg = self._get_config()
             pressed_physical: Set[str] = set()
 
-            # Read digital buttons
-            for idx, label in PHYSICAL_BUTTON_MAP.items():
-                if idx < joy.get_numbuttons() and joy.get_button(idx):
-                    pressed_physical.add(label)
+            try:
+                num_buttons = joy.get_numbuttons()
+                for idx, label in PHYSICAL_BUTTON_MAP.items():
+                    if idx < num_buttons and joy.get_button(idx):
+                        pressed_physical.add(label)
 
-            # Read D-Pad (Hat)
-            if joy.get_numhats() > 0:
-                hat = joy.get_hat(0)
-                if hat[1] == 1: pressed_physical.add("Up")
-                elif hat[1] == -1: pressed_physical.add("Down")
-                if hat[0] == -1: pressed_physical.add("Left")
-                elif hat[0] == 1: pressed_physical.add("Right")
+                # Read D-Pad (Hat)
+                if joy.get_numhats() > 0:
+                    hat = joy.get_hat(0)
+                    if hat[1] == 1: pressed_physical.add("Up")
+                    elif hat[1] == -1: pressed_physical.add("Down")
+                    if hat[0] == -1: pressed_physical.add("Left")
+                    elif hat[0] == 1: pressed_physical.add("Right")
 
-            # Read and Normalize Triggers [-1.0, 1.0] -> [0.0, 1.0]
-            raw_lt = joy.get_axis(AXIS_LT) if joy.get_numaxes() > AXIS_LT else -1.0
-            raw_rt = joy.get_axis(AXIS_RT) if joy.get_numaxes() > AXIS_RT else -1.0
-            lt_val = max(0.0, min(1.0, (raw_lt + 1.0) / 2.0))
-            rt_val = max(0.0, min(1.0, (raw_rt + 1.0) / 2.0))
+                # Read and Normalize Triggers [-1.0, 1.0] -> [0.0, 1.0]
+                raw_lt = joy.get_axis(AXIS_LT) if joy.get_numaxes() > AXIS_LT else -1.0
+                raw_rt = joy.get_axis(AXIS_RT) if joy.get_numaxes() > AXIS_RT else -1.0
+                lt_val = max(0.0, min(1.0, (raw_lt + 1.0) / 2.0))
+                rt_val = max(0.0, min(1.0, (raw_rt + 1.0) / 2.0))
 
-            if lt_val > TRIGGER_DIGITAL_THRESHOLD:
-                pressed_physical.add("LT")
-            if rt_val > TRIGGER_DIGITAL_THRESHOLD:
-                pressed_physical.add("RT")
+                if lt_val > TRIGGER_DIGITAL_THRESHOLD:
+                    pressed_physical.add("LT")
+                if rt_val > TRIGGER_DIGITAL_THRESHOLD:
+                    pressed_physical.add("RT")
 
-            # Read Analog Sticks
-            lx = joy.get_axis(AXIS_LX) if joy.get_numaxes() > AXIS_LX else 0.0
-            ly = joy.get_axis(AXIS_LY) if joy.get_numaxes() > AXIS_LY else 0.0
-            rx = joy.get_axis(AXIS_RX) if joy.get_numaxes() > AXIS_RX else 0.0
-            ry = joy.get_axis(AXIS_RY) if joy.get_numaxes() > AXIS_RY else 0.0
+                # Read Analog Sticks
+                lx = joy.get_axis(AXIS_LX) if joy.get_numaxes() > AXIS_LX else 0.0
+                ly = joy.get_axis(AXIS_LY) if joy.get_numaxes() > AXIS_LY else 0.0
+                rx = joy.get_axis(AXIS_RX) if joy.get_numaxes() > AXIS_RX else 0.0
+                ry = joy.get_axis(AXIS_RY) if joy.get_numaxes() > AXIS_RY else 0.0
+            except Exception:
+                joy = None
+                continue
 
             # ─── 2. Evaluate Macros (Double-Tap & Combos) ────────────
             newly_pressed = pressed_physical - self._prev_pressed_physical
@@ -195,7 +204,6 @@ class RemapperEngine(threading.Thread):
                     if btn in newly_pressed:
                         last_t = self._last_press_time.get(btn, 0.0)
                         if (now - last_t) <= DOUBLE_TAP_WINDOW:
-                            # Double-tap detected
                             for out_btn in m_out:
                                 self._active_macro_outputs.append({
                                     "button": out_btn,
@@ -243,34 +251,39 @@ class RemapperEngine(threading.Thread):
                 target_virt = cfg.button_mapping.get(phys_btn, phys_btn)
                 pressed_virtual.add(target_virt)
 
-            # ─── 4. Push Output to Virtual Gamepad ───────────────────
-            for label, btn_flag in VG_BUTTONS.items():
-                if label in TRIGGER_LABELS:
-                    continue
-                if label in pressed_virtual:
-                    self._vpad.press_button(button=btn_flag)
-                else:
-                    self._vpad.release_button(button=btn_flag)
+            # ─── 4. Push Output to Virtual Gamepad (if remapping is active) ───
+            if self.remapping_active:
+                if self._vpad is None:
+                    try:
+                        self._vpad = vg.VX360Gamepad()
+                    except Exception as exc:
+                        self.signals.status_updated.emit(f"ViGEmBus Note: {exc}")
 
-            # Forward analog triggers
-            v_lt = (lt_val if "LT" in pressed_physical else 1.0) if "LT" in pressed_virtual else 0.0
-            v_rt = (rt_val if "RT" in pressed_physical else 1.0) if "RT" in pressed_virtual else 0.0
-            self._vpad.left_trigger_float(value_float=v_lt)
-            self._vpad.right_trigger_float(value_float=v_rt)
+                if self._vpad is not None:
+                    for label, btn_flag in VG_BUTTONS.items():
+                        if label in TRIGGER_LABELS:
+                            continue
+                        if label in pressed_virtual:
+                            self._vpad.press_button(button=btn_flag)
+                        else:
+                            self._vpad.release_button(button=btn_flag)
 
-            # Forward analog joysticks
-            self._vpad.left_joystick_float(
-                x_value_float=max(-1.0, min(1.0, lx)),
-                y_value_float=max(-1.0, min(1.0, -ly))
-            )
-            self._vpad.right_joystick_float(
-                x_value_float=max(-1.0, min(1.0, rx)),
-                y_value_float=max(-1.0, min(1.0, -ry))
-            )
+                    v_lt = (lt_val if "LT" in pressed_physical else 1.0) if "LT" in pressed_virtual else 0.0
+                    v_rt = (rt_val if "RT" in pressed_physical else 1.0) if "RT" in pressed_virtual else 0.0
+                    self._vpad.left_trigger_float(value_float=v_lt)
+                    self._vpad.right_trigger_float(value_float=v_rt)
 
-            self._vpad.update()
+                    self._vpad.left_joystick_float(
+                        x_value_float=max(-1.0, min(1.0, lx)),
+                        y_value_float=max(-1.0, min(1.0, -ly))
+                    )
+                    self._vpad.right_joystick_float(
+                        x_value_float=max(-1.0, min(1.0, rx)),
+                        y_value_float=max(-1.0, min(1.0, -ry))
+                    )
+                    self._vpad.update()
 
-            # Linger macro display (~800ms) for high-visibility visualizer cues
+            # Linger macro display (~850ms)
             macro_active_state = (now - self._last_macro_time) < 0.85
             display_macro_name = self._last_macro_name if macro_active_state else ""
             display_macro_virtual = self._last_macro_virtual if macro_active_state else []
@@ -307,6 +320,10 @@ class RemapperEngine(threading.Thread):
         CURRENT_TELEMETRY["macro_active"] = False
         CURRENT_TELEMETRY["macro_virtual"] = []
         time.sleep(ENGINE_POLL_INTERVAL * 2)
+        try:
+            pygame.quit()
+        except Exception:
+            pass
         try:
             pygame.quit()
         except Exception:

@@ -1020,11 +1020,27 @@ def delete_profile():
     success = profile_mgr.delete_profile(name)
     return jsonify({"success": success})
 
+def init_web_background_engine():
+    global engine_instance, engine_status
+    with engine_lock:
+        if engine_instance is None:
+            engine_instance = RemapperEngine(signals)
+            engine_instance.remapping_active = False
+            profile_mgr.load_profiles()
+            active_p = profile_mgr.get_profile("Destiny 2") or next(iter(profile_mgr.profiles.values()), None)
+            if active_p:
+                engine_instance.update_config(EngineConfig(
+                    button_mapping=active_p.button_mapping,
+                    macros=active_p.macros
+                ))
+            engine_instance.start()
+            engine_status = "Monitor Mode (Hardware visualizer active)"
+
 @app.route("/api/engine/status")
 def get_engine_status():
     global engine_instance, engine_status
     with engine_lock:
-        running = engine_instance is not None and engine_instance.running
+        running = engine_instance is not None and getattr(engine_instance, "remapping_active", False)
     from engine import CURRENT_TELEMETRY
     return jsonify({
         "running": running,
@@ -1040,29 +1056,33 @@ def toggle_engine():
     use_hidhide = data.get("use_hidhide", True)
 
     with engine_lock:
-        if engine_instance and engine_instance.running:
-            engine_instance.stop()
-            engine_instance = None
+        if engine_instance is None or not engine_instance.running:
+            engine_instance = RemapperEngine(signals)
+            engine_instance.remapping_active = False
+            engine_instance.start()
+
+        if engine_instance.remapping_active:
+            engine_instance.remapping_active = False
             if use_hidhide and hidhide.is_hidhide_available():
                 hidhide.disable_hidhide_cloaking()
-            engine_status = "Stopped"
+            engine_status = "Monitor Mode (Remapping Paused)"
         else:
             profile = profile_mgr.get_profile(p_name)
             if use_hidhide and hidhide.is_hidhide_available():
                 engine_status = "Cloaking physical controller with HidHide..."
                 hidhide.setup_hidhide_for_remapper()
 
-            engine_instance = RemapperEngine(signals)
             engine_instance.update_config(EngineConfig(
                 button_mapping=profile.button_mapping,
                 macros=profile.macros
             ))
-            engine_instance.start()
+            engine_instance.remapping_active = True
             engine_status = f"Active -- Streaming '{profile.name}' to Virtual Xbox 360"
 
     return jsonify({"success": True})
 
 def start_web_server(port: int = 5000):
+    init_web_background_engine()
     print(f"[*] Starting GeForce NOW Controller Remapper PC Web UI at http://localhost:{port}")
     app.run(host="127.0.0.1", port=port, debug=False)
 
