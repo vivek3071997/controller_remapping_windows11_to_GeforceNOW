@@ -93,6 +93,10 @@ class RemapperEngine(threading.Thread):
         self._last_macro_name: str = ""
         self._last_macro_virtual: List[str] = []
 
+        # Trigger calibration state (prevents uninitialized 0.0 reading as 50%)
+        self._lt_seen_negative: bool = False
+        self._rt_seen_negative: bool = False
+
     def update_config(self, cfg: EngineConfig) -> None:
         with self._config_lock:
             self._config = cfg
@@ -183,51 +187,32 @@ class RemapperEngine(threading.Thread):
                     if hat[0] == -1: pressed_physical.add("Left")
                     elif hat[0] == 1: pressed_physical.add("Right")
 
-                # Read Triggers & Analog Sticks (supporting Windows XInput & DirectInput)
-                lt_val = 0.0
-                rt_val = 0.0
-                lx, ly, rx, ry = 0.0, 0.0, 0.0, 0.0
+                # Read Analog Sticks (Canonical: 0=LX, 1=LY, 2=RX, 3=RY)
+                lx = joy.get_axis(AXIS_LX) if num_axes > AXIS_LX else 0.0
+                ly = joy.get_axis(AXIS_LY) if num_axes > AXIS_LY else 0.0
+                rx = joy.get_axis(AXIS_RX) if num_axes > AXIS_RX else 0.0
+                ry = joy.get_axis(AXIS_RY) if num_axes > AXIS_RY else 0.0
 
-                if num_axes >= 6:
-                    a0 = joy.get_axis(0)
-                    a1 = joy.get_axis(1)
-                    a2 = joy.get_axis(2)
-                    a3 = joy.get_axis(3)
-                    a4 = joy.get_axis(4)
-                    a5 = joy.get_axis(5)
+                # Read Triggers (Canonical: 4=LT, 5=RT)
+                raw_lt = joy.get_axis(AXIS_LT) if num_axes > AXIS_LT else 0.0
+                raw_rt = joy.get_axis(AXIS_RT) if num_axes > AXIS_RT else 0.0
 
-                    lx = a0
-                    ly = a1
+                # Detect if triggers rest at negative values (-1.0)
+                if raw_lt < -0.2:
+                    self._lt_seen_negative = True
+                if raw_rt < -0.2:
+                    self._rt_seen_negative = True
 
-                    # Auto-detect whether Axis 2 is LT (Windows XInput standard) or Axis 4 is LT
-                    # On Windows XInput (SDL2), triggers rest at -1.0, while sticks rest around 0.0.
-                    if "xbox" in ctrl_name_lower or "xinput" in ctrl_name_lower or a2 < -0.5:
-                        raw_lt = a2
-                        raw_rt = a5
-                        rx = a3
-                        ry = a4
-                    elif a4 < -0.5:
-                        raw_lt = a4
-                        raw_rt = a5
-                        rx = a2
-                        ry = a3
-                    else:
-                        # Fallback normalization
-                        raw_lt = a2 if abs(a2 + 1.0) < abs(a4 + 1.0) else a4
-                        raw_rt = a5
-                        rx = a3 if raw_lt == a2 else a2
-                        ry = a4 if raw_lt == a2 else a3
-
+                # Normalize triggers [0.0, 1.0] without uninitialized 0.0 becoming 50%
+                if self._lt_seen_negative:
                     lt_val = max(0.0, min(1.0, (raw_lt + 1.0) / 2.0))
+                else:
+                    lt_val = max(0.0, min(1.0, raw_lt)) if raw_lt > 0.05 else 0.0
+
+                if self._rt_seen_negative:
                     rt_val = max(0.0, min(1.0, (raw_rt + 1.0) / 2.0))
-                elif num_axes >= 4:
-                    lx = joy.get_axis(0)
-                    ly = joy.get_axis(1)
-                    rx = joy.get_axis(2)
-                    ry = joy.get_axis(3)
-                    if num_axes > 4:
-                        raw_lt = joy.get_axis(4)
-                        lt_val = max(0.0, min(1.0, (raw_lt + 1.0) / 2.0))
+                else:
+                    rt_val = max(0.0, min(1.0, raw_rt)) if raw_rt > 0.05 else 0.0
 
                 # If digital button was pressed for LT/RT, treat as 100% pressed
                 if "LT" in pressed_physical and lt_val < 0.5:
