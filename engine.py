@@ -134,6 +134,17 @@ class RemapperEngine(threading.Thread):
         pygame.init()
         pygame.joystick.init()
 
+        if pygame.joystick.get_count() == 0:
+            self.signals.status_updated.emit(
+                "Error: No physical controller detected.  "
+                "Connect the Cosmic Byte Ares Pro and restart."
+            )
+            return
+
+        # Initialize physical joystick FIRST before creating the virtual gamepad
+        joy = pygame.joystick.Joystick(0)
+        joy.init()
+
         # Create the virtual target gamepad
         try:
             self._vpad = vg.VX360Gamepad()
@@ -142,21 +153,6 @@ class RemapperEngine(threading.Thread):
                 f"Driver Error (is ViGEmBus installed?): {exc}"
             )
             return
-
-        # Let system enumerate newly created virtual pad, then select physical controller
-        pygame.joystick.quit()
-        pygame.joystick.init()
-
-        if pygame.joystick.get_count() == 0:
-            self.signals.status_updated.emit(
-                "Error: No physical controller detected.  "
-                "Connect the Cosmic Byte Ares Pro and restart."
-            )
-            return
-
-        # Pick physical controller (prioritize physical over virtual loopback)
-        joy = pygame.joystick.Joystick(0)
-        joy.init()
 
         self.running = True
         self.signals.status_updated.emit(
@@ -188,10 +184,15 @@ class RemapperEngine(threading.Thread):
                 if hat[0] == 1:
                     pressed_physical.add("Right")
 
-            # Analog triggers treated as digital buttons
-            if joy.get_numaxes() > AXIS_LT and joy.get_axis(AXIS_LT) > TRIGGER_DIGITAL_THRESHOLD:
+            # Analog triggers normalized from [-1.0, 1.0] to [0.0, 1.0]
+            raw_lt = joy.get_axis(AXIS_LT) if joy.get_numaxes() > AXIS_LT else -1.0
+            raw_rt = joy.get_axis(AXIS_RT) if joy.get_numaxes() > AXIS_RT else -1.0
+            lt_val = max(0.0, min(1.0, (raw_lt + 1.0) / 2.0))
+            rt_val = max(0.0, min(1.0, (raw_rt + 1.0) / 2.0))
+
+            if lt_val > TRIGGER_DIGITAL_THRESHOLD:
                 pressed_physical.add("LT")
-            if joy.get_numaxes() > AXIS_RT and joy.get_axis(AXIS_RT) > TRIGGER_DIGITAL_THRESHOLD:
+            if rt_val > TRIGGER_DIGITAL_THRESHOLD:
                 pressed_physical.add("RT")
 
             # Raw analog axes (sticks)
@@ -279,10 +280,10 @@ class RemapperEngine(threading.Thread):
 
             # Analog triggers
             self._vpad.left_trigger_float(
-                value_float=1.0 if "LT" in pressed_virtual else 0.0
+                value_float=(lt_val if "LT" in pressed_physical else 1.0) if "LT" in pressed_virtual else 0.0
             )
             self._vpad.right_trigger_float(
-                value_float=1.0 if "RT" in pressed_virtual else 0.0
+                value_float=(rt_val if "RT" in pressed_physical else 1.0) if "RT" in pressed_virtual else 0.0
             )
 
             # Analog sticks (pygame Y axis is inverted vs XInput)
