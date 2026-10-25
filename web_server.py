@@ -104,6 +104,18 @@ HTML_DASHBOARD = """
             100% { background-position: 0% 50%; }
         }
 
+        /* ─── MACRO TRIGGER VISUALIZER PULSE ─── */
+        @keyframes pulseAlert {
+            0% { transform: scale(1.0); box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); }
+            100% { transform: scale(1.015); box-shadow: 0 6px 20px rgba(124, 58, 237, 0.65); }
+        }
+
+        .svg-macro-active {
+            filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.85)) !important;
+            stroke: #C084FC !important;
+            stroke-width: 3.5px !important;
+        }
+
         .brand {
             display: flex;
             align-items: center;
@@ -389,12 +401,22 @@ HTML_DASHBOARD = """
                 <span class="card-title">HARDWARE CONTROLLER VISUALIZER</span>
                 <span id="visControllerName" class="badge" style="background:#E2E8F0; color:#334155;">Controller: Checking...</span>
             </div>
+
+            <!-- Macro Trigger Alert Banner -->
+            <div id="visMacroAlertBanner" style="display: none; margin-bottom: 0.85rem; padding: 0.65rem 1rem; border-radius: 8px; background: linear-gradient(135deg, #7C3AED, #2563EB); color: #FFFFFF; font-weight: 700; font-size: 0.875rem; align-items: center; justify-content: space-between; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); animation: pulseAlert 1.2s infinite alternate;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.15rem;">⚡</span>
+                    <span>MACRO TRIGGERED: <span id="visMacroNameText" style="text-decoration: underline; font-weight: 800;">Double Tap Dodge</span></span>
+                </div>
+                <span id="visMacroOutputBadge" style="background: rgba(255,255,255,0.25); padding: 0.25rem 0.65rem; border-radius: 6px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.03em;">OUTPUT: [B]</span>
+            </div>
+
             <div style="display: flex; gap: 2rem; align-items: center; justify-content: center; flex-wrap: wrap;">
                 <!-- Vector Gamepad SVG -->
                 <div style="flex: 1; min-width: 320px; max-width: 440px;">
                     <svg id="gamepadSvg" viewBox="0 0 400 240" style="width: 100%; height: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.06));">
                         <!-- Gamepad Base Body -->
-                        <path d="M 90,60 C 120,45 280,45 310,60 C 350,80 390,160 360,210 C 340,240 300,210 270,180 C 230,170 170,170 130,180 C 100,210 60,240 40,210 C 10,160 50,80 90,60 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" />
+                        <path id="svg_GamepadBody" d="M 90,60 C 120,45 280,45 310,60 C 350,80 390,160 360,210 C 340,240 300,210 270,180 C 230,170 170,170 130,180 C 100,210 60,240 40,210 C 10,160 50,80 90,60 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" />
                         
                         <!-- Triggers & Bumpers -->
                         <rect id="svg_LT" x="80" y="20" width="55" height="24" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="2"/>
@@ -731,23 +753,53 @@ HTML_DASHBOARD = """
 
         const phys = t.physical_pressed || [];
         const virt = t.virtual_pressed || [];
+        const macroVirt = t.macro_virtual || [];
+        const isMacroActive = Boolean(t.macro_active && t.last_macro);
 
         document.getElementById('visPhysicalKeys').innerText = phys.length ? phys.join(', ') : 'None';
-        document.getElementById('visVirtualKeys').innerText = virt.length ? virt.join(', ') : 'None';
+        document.getElementById('visVirtualKeys').innerText = virt.length ? (virt.join(', ') + (isMacroActive ? ' (⚡ MACRO)' : '')) : 'None';
 
         document.getElementById('visLT').innerText = Math.round((t.lt || 0) * 100) + '%';
         document.getElementById('visRT').innerText = Math.round((t.rt || 0) * 100) + '%';
         document.getElementById('visLS').innerText = `(${t.lx || 0}, ${t.ly || 0})`;
         document.getElementById('visRS').innerText = `(${t.rx || 0}, ${t.ry || 0})`;
 
-        // Show live translated action in game
-        if (phys.length > 0) {
+        // Macro Alert Banner & Gamepad Shell Aura
+        const macroBanner = document.getElementById('visMacroAlertBanner');
+        const gamepadBody = document.getElementById('svg_GamepadBody');
+        if (isMacroActive) {
+            if (macroBanner) {
+                macroBanner.style.display = 'flex';
+                document.getElementById('visMacroNameText').innerText = t.last_macro;
+                document.getElementById('visMacroOutputBadge').innerText = 'OUTPUT: [' + (macroVirt.length ? macroVirt.join(', ') : 'Active') + ']';
+            }
+            if (gamepadBody) {
+                gamepadBody.setAttribute('stroke', '#A855F7');
+                gamepadBody.setAttribute('stroke-width', '4');
+            }
+        } else {
+            if (macroBanner) {
+                macroBanner.style.display = 'none';
+            }
+            if (gamepadBody) {
+                gamepadBody.setAttribute('stroke', '#CBD5E1');
+                gamepadBody.setAttribute('stroke-width', '3');
+            }
+        }
+
+        // Show live translated action in game or active macro
+        if (isMacroActive) {
+            const outStr = macroVirt.length ? macroVirt.join(', ') : 'Sequence';
+            document.getElementById('visLiveAction').innerHTML = `<span style="color:#7C3AED; font-weight:800;">⚡ MACRO TRIGGERED: ${t.last_macro} ➔ Emitting [${outStr}]</span>`;
+        } else if (phys.length > 0) {
             const firstPhys = phys[0];
             const targetVirt = currentProfile.button_mapping[firstPhys] || firstPhys;
             const actionText = (currentProfile.button_actions && currentProfile.button_actions[targetVirt]) || targetVirt;
             document.getElementById('visLiveAction').innerText = `[${firstPhys}] ➔ Emits [${targetVirt}] (${actionText})`;
         } else if (t.last_macro) {
             document.getElementById('visLiveAction').innerText = `⚡ Macro Fired: ${t.last_macro}`;
+        } else {
+            document.getElementById('visLiveAction').innerText = `Press any button on controller...`;
         }
 
         // Update Vector SVG Elements
@@ -755,14 +807,22 @@ HTML_DASHBOARD = """
         ALL_BTNS.forEach(b => {
             const el = document.getElementById('svg_' + b);
             if (!el) return;
-            const isPressed = phys.includes(b);
-            if (b === 'A') el.setAttribute('fill', isPressed ? '#22C55E' : '#FFFFFF');
-            else if (b === 'B') el.setAttribute('fill', isPressed ? '#EF4444' : '#FFFFFF');
-            else if (b === 'X') el.setAttribute('fill', isPressed ? '#3B82F6' : '#FFFFFF');
-            else if (b === 'Y') el.setAttribute('fill', isPressed ? '#EAB308' : '#FFFFFF');
-            else if (b === 'LT' || b === 'RT') el.setAttribute('fill', (isPressed || (b==='LT' && t.lt>0.15) || (b==='RT' && t.rt>0.15)) ? '#38BDF8' : '#F1F5F9');
-            else if (b === 'LB' || b === 'RB') el.setAttribute('fill', isPressed ? '#0284C7' : '#E2E8F0');
-            else el.setAttribute('fill', isPressed ? '#0284C7' : '#E2E8F0');
+            const isMacroTarget = macroVirt.includes(b);
+            const isPressed = phys.includes(b) || isMacroTarget;
+
+            if (isMacroTarget) {
+                el.setAttribute('fill', '#A855F7');
+                el.classList.add('svg-macro-active');
+            } else {
+                el.classList.remove('svg-macro-active');
+                if (b === 'A') el.setAttribute('fill', isPressed ? '#22C55E' : '#FFFFFF');
+                else if (b === 'B') el.setAttribute('fill', isPressed ? '#EF4444' : '#FFFFFF');
+                else if (b === 'X') el.setAttribute('fill', isPressed ? '#3B82F6' : '#FFFFFF');
+                else if (b === 'Y') el.setAttribute('fill', isPressed ? '#EAB308' : '#FFFFFF');
+                else if (b === 'LT' || b === 'RT') el.setAttribute('fill', (isPressed || (b==='LT' && t.lt>0.15) || (b==='RT' && t.rt>0.15)) ? '#38BDF8' : '#F1F5F9');
+                else if (b === 'LB' || b === 'RB') el.setAttribute('fill', isPressed ? '#0284C7' : '#E2E8F0');
+                else el.setAttribute('fill', isPressed ? '#0284C7' : '#E2E8F0');
+            }
         });
 
         // Update Thumbstick Nubs

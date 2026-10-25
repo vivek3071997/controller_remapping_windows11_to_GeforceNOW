@@ -66,7 +66,9 @@ CURRENT_TELEMETRY: Dict[str, Any] = {
     "ly": 0.0,
     "rx": 0.0,
     "ry": 0.0,
-    "last_macro": ""
+    "last_macro": "",
+    "macro_active": False,
+    "macro_virtual": []
 }
 
 class RemapperEngine(threading.Thread):
@@ -86,6 +88,9 @@ class RemapperEngine(threading.Thread):
 
         # Active macro execution state
         self._active_macro_outputs: List[Dict[str, Any]] = []
+        self._last_macro_time: float = 0.0
+        self._last_macro_name: str = ""
+        self._last_macro_virtual: List[str] = []
 
     def update_config(self, cfg: EngineConfig) -> None:
         with self._config_lock:
@@ -199,6 +204,10 @@ class RemapperEngine(threading.Thread):
                                 })
                             triggered_macro_buttons.add(btn)
                             self._last_press_time[btn] = 0.0
+                            active_macro_name = macro.get("name", "Double-Tap")
+                            self._last_macro_time = now
+                            self._last_macro_name = active_macro_name
+                            self._last_macro_virtual = list(m_out)
                         else:
                             self._last_press_time[btn] = now
 
@@ -208,6 +217,9 @@ class RemapperEngine(threading.Thread):
                             macro_produced_virtual.add(out_btn)
                         triggered_macro_buttons.update(m_trigs)
                         active_macro_name = macro.get("name", "Combo")
+                        self._last_macro_time = now
+                        self._last_macro_name = active_macro_name
+                        self._last_macro_virtual = list(m_out)
 
             self._prev_pressed_physical = pressed_physical
 
@@ -218,6 +230,8 @@ class RemapperEngine(threading.Thread):
                     macro_produced_virtual.add(item["button"])
                     still_active_macros.append(item)
                     active_macro_name = item.get("name", active_macro_name)
+                    self._last_macro_time = now
+                    self._last_macro_name = active_macro_name
             self._active_macro_outputs = still_active_macros
 
             # ─── 3. Standard Profile Remapping ───────────────────────
@@ -256,6 +270,11 @@ class RemapperEngine(threading.Thread):
 
             self._vpad.update()
 
+            # Linger macro display (~800ms) for high-visibility visualizer cues
+            macro_active_state = (now - self._last_macro_time) < 0.85
+            display_macro_name = self._last_macro_name if macro_active_state else ""
+            display_macro_virtual = self._last_macro_virtual if macro_active_state else []
+
             # ─── 5. Update Telemetry Broadcast (~30 Hz) ─────────────
             if now - last_telemetry_emit >= 0.033:
                 last_telemetry_emit = now
@@ -270,7 +289,9 @@ class RemapperEngine(threading.Thread):
                     "ly": round(ly, 2),
                     "rx": round(rx, 2),
                     "ry": round(ry, 2),
-                    "last_macro": active_macro_name
+                    "last_macro": display_macro_name,
+                    "macro_active": macro_active_state,
+                    "macro_virtual": sorted(list(set(display_macro_virtual)))
                 }
                 CURRENT_TELEMETRY.update(telemetry_payload)
                 self.signals.telemetry_updated.emit(telemetry_payload)
@@ -282,6 +303,9 @@ class RemapperEngine(threading.Thread):
         self.running = False
         CURRENT_TELEMETRY["physical_pressed"] = []
         CURRENT_TELEMETRY["virtual_pressed"] = []
+        CURRENT_TELEMETRY["last_macro"] = ""
+        CURRENT_TELEMETRY["macro_active"] = False
+        CURRENT_TELEMETRY["macro_virtual"] = []
         time.sleep(ENGINE_POLL_INTERVAL * 2)
         try:
             pygame.quit()

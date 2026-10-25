@@ -7,12 +7,13 @@ An advanced, low-latency Windows controller remapper and macro engine built spec
 ## Key Highlights
 
 - **Per-Game Profiles with Persistent Storage**: Select games from the left sidebar (*The Witcher 3*, *Cyberpunk 2077*, *Elden Ring*, or create custom game profiles). All button remaps and macros are saved permanently into `profiles.json`.
-- **Advanced Macro Engine**:
+- **Advanced Macro Engine & Real-Time Macro Visualizer**:
   - **Double-Tap Macros**: Execute evasive dodges, sprints, or rapid-fire actions by double-tapping any button (e.g., double-tap `B` ➔ Dodge Roll).
   - **Multi-Button Combinations (Combos)**: Press and hold key combinations to trigger instant single-button or sequenced actions (e.g., `LB + X` ➔ Cast Sign `RT`, `Y + RB` ➔ Two-Hand Weapon).
+  - **Live Hardware Model Visualizer with Macro Cues**: Real-time vector gamepad visualizer on both Desktop & Web Dashboard highlights physical presses, translated virtual outputs, and flashes an electric purple macro alert banner + pulsing neon aura rings on the exact buttons triggered by active macros.
 - **Anti-Double Input Protection (Integrated HidHide)**: Completely hides the physical gamepad from GeForce NOW at the driver level, ensuring only the remapped virtual Xbox 360 controller registers.
 - **125 Hz Translation Loop**: Sub-10ms response latency with normalized trigger gradients (`0.0` to `1.0`) and stick deadzone filtering.
-- **Modern Dark UI**: Intuitive, high-contrast dark gamer theme built with PyQt6.
+- **Dual UI (PyQt6 Desktop + Responsive Web Dashboard)**: Modular White aesthetic with dynamic RGB neon lightbar status indicator.
 
 ---
 
