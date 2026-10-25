@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeForce NOW Controller Remapper PC — Web Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+<header>
+    <div class="brand">
+        <span>🎮</span> GEFORCE NOW CONTROLLER REMAPPER PC
+    </div>
+    <div class="engine-actions">
+        <label class="hidhide-toggle">
+            <input type="checkbox" id="chkHidHide" checked>
+            <span>Prevent Double Input (HidHide)</span>
+        </label>
+        <button id="btnToggleEngine" class="btn btn-primary" onclick="toggleEngine()">
+            ▶ RUN REMAPPER
+        </button>
+    </div>
+</header>
+<div class="rgb-strip" id="rgbStrip"></div>
+
+<div class="app-layout">
+    <!-- LEFT: Profile Selector -->
+    <div class="sidebar">
+        <div class="sidebar-title">GAME PROFILES</div>
+        <ul class="profile-list" id="profileList"></ul>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary" style="flex: 1;" onclick="createNewProfile()">+ New</button>
+            <button class="btn btn-danger" onclick="deleteCurrentProfile()">Delete</button>
+        </div>
+        <button class="btn btn-success" onclick="saveCurrentProfile()">💾 Save Changes</button>
+    </div>
+
+    <!-- RIGHT: Visualizer, Remapping Matrix & Macros -->
+    <div class="main-panel">
+        <!-- Interactive Controller Visualizer -->
+        <div class="card" style="padding: 1.25rem 1.5rem;">
+            <div class="card-header" style="margin-bottom: 0.75rem;">
+                <span class="card-title">HARDWARE CONTROLLER VISUALIZER</span>
+                <span id="visControllerName" class="badge" style="background:#E2E8F0; color:#334155;">Controller: Checking...</span>
+            </div>
+
+            <!-- Macro Trigger Alert Banner -->
+            <div id="visMacroAlertBanner" style="display: none; margin-bottom: 0.85rem; padding: 0.65rem 1rem; border-radius: 8px; background: linear-gradient(135deg, #7C3AED, #2563EB); color: #FFFFFF; font-weight: 700; font-size: 0.875rem; align-items: center; justify-content: space-between; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); animation: pulseAlert 1.2s infinite alternate;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.15rem;">⚡</span>
+                    <span>MACRO TRIGGERED: <span id="visMacroNameText" style="text-decoration: underline; font-weight: 800;">Double Tap Dodge</span></span>
+                </div>
+                <span id="visMacroOutputBadge" style="background: rgba(255,255,255,0.25); padding: 0.25rem 0.65rem; border-radius: 6px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.03em;">OUTPUT: [B]</span>
+            </div>
+
+            <div style="display: flex; gap: 2rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+                <!-- Vector Gamepad SVG -->
+                <div style="flex: 1; min-width: 320px; max-width: 440px;">
+                    <svg id="gamepadSvg" viewBox="0 0 400 240" style="width: 100%; height: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.06));">
+                        <!-- Gamepad Base Body -->
+                        <path id="svg_GamepadBody" d="M 90,60 C 120,45 280,45 310,60 C 350,80 390,160 360,210 C 340,240 300,210 270,180 C 230,170 170,170 130,180 C 100,210 60,240 40,210 C 10,160 50,80 90,60 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" />
+                        
+                        <!-- Triggers & Bumpers -->
+                        <rect id="svg_LT" x="80" y="20" width="55" height="24" rx="6" fill="#F0F9FF" stroke="#0284C7" stroke-width="2"/>
+                        <text id="svg_LT_Text" x="107" y="36" font-size="10" font-weight="bold" fill="#0284C7" text-anchor="middle">LT</text>
+                        
+                        <rect id="svg_RT" x="265" y="20" width="55" height="24" rx="6" fill="#F0F9FF" stroke="#0284C7" stroke-width="2"/>
+                        <text id="svg_RT_Text" x="292" y="36" font-size="10" font-weight="bold" fill="#0284C7" text-anchor="middle">RT</text>
+
+                        <rect id="svg_LB" x="75" y="48" width="65" height="16" rx="5" fill="#FFFFFF" stroke="#0284C7" stroke-width="1.8"/>
+                        <text id="svg_LB_Text" x="107" y="60" font-size="9" font-weight="bold" fill="#0284C7" text-anchor="middle">LB</text>
+
+                        <rect id="svg_RB" x="260" y="48" width="65" height="16" rx="5" fill="#FFFFFF" stroke="#0284C7" stroke-width="1.8"/>
+                        <text id="svg_RB_Text" x="292" y="60" font-size="9" font-weight="bold" fill="#0284C7" text-anchor="middle">RB</text>
+
+                        <!-- D-Pad -->
+                        <g id="svg_Dpad">
+                            <rect id="svg_Up" x="115" y="115" width="18" height="20" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                            <rect id="svg_Down" x="115" y="151" width="18" height="20" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                            <rect id="svg_Left" x="97" y="133" width="20" height="18" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                            <rect id="svg_Right" x="131" y="133" width="20" height="18" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                            <rect x="115" y="133" width="18" height="18" fill="#E2E8F0" />
+                        </g>
+
+                        <!-- ABXY Cluster -->
+                        <g id="svg_ABXY">
+                            <circle id="svg_Y" cx="285" cy="80" r="12" fill="#FFFFFF" stroke="#EAB308" stroke-width="2" />
+                            <text x="285" y="84" font-size="10" font-weight="bold" fill="#CA8A04" text-anchor="middle">Y</text>
+
+                            <circle id="svg_A" cx="285" cy="130" r="12" fill="#FFFFFF" stroke="#22C55E" stroke-width="2" />
+                            <text x="285" y="134" font-size="10" font-weight="bold" fill="#16A34A" text-anchor="middle">A</text>
+
+                            <circle id="svg_X" cx="260" cy="105" r="12" fill="#FFFFFF" stroke="#3B82F6" stroke-width="2" />
+                            <text x="260" y="109" font-size="10" font-weight="bold" fill="#2563EB" text-anchor="middle">X</text>
+
+                            <circle id="svg_B" cx="310" cy="105" r="12" fill="#FFFFFF" stroke="#EF4444" stroke-width="2" />
+                            <text x="310" y="109" font-size="10" font-weight="bold" fill="#DC2626" text-anchor="middle">B</text>
+                        </g>
+
+                        <!-- Analog Sticks -->
+                        <!-- Left Stick (Upper Left) -->
+                        <circle cx="125" cy="95" r="22" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="2" />
+                        <circle id="svg_LS_Nub" cx="125" cy="95" r="15" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2" />
+                        <text id="svg_LS_Text" x="125" y="99" font-size="8" font-weight="bold" fill="#64748B" text-anchor="middle">LS</text>
+
+                        <!-- Right Stick (Lower Right) -->
+                        <circle cx="240" cy="150" r="22" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="2" />
+                        <circle id="svg_RS_Nub" cx="240" cy="150" r="15" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2" />
+                        <text id="svg_RS_Text" x="240" y="154" font-size="8" font-weight="bold" fill="#64748B" text-anchor="middle">RS</text>
+
+                        <!-- Center Nav (BACK, LOGO, START) -->
+                        <rect id="svg_BACK" x="170" y="95" width="14" height="10" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                        <rect id="svg_START" x="216" y="95" width="14" height="10" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                        <circle cx="200" cy="80" r="12" fill="#FFFFFF" stroke="#0284C7" stroke-width="2" />
+                        <text x="200" y="84" font-size="10" font-weight="bold" fill="#0284C7" text-anchor="middle">⮞</text>
+                    </svg>
+                </div>
+
+                <!-- Telemetry Readout Box -->
+                <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 0.6rem;">
+                    <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Real-Time Action Translation</div>
+                        <div id="visLiveAction" style="font-size: 1rem; font-weight: 800; color: #0284C7; margin-top: 4px;">Press any button on controller...</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                        <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.75rem;">
+                            <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary);">PHYSICAL BUTTON</div>
+                            <div id="visPhysicalKeys" style="font-size: 0.95rem; font-weight: 700; color: #0F172A;">None</div>
+                        </div>
+                        <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.75rem;">
+                            <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary);">VIRTUAL OUTPUT</div>
+                            <div id="visVirtualKeys" style="font-size: 0.95rem; font-weight: 700; color: #10B981;">None</div>
+                        </div>
+                    </div>
+                    <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.75rem; display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600;">
+                        <span>LT: <b id="visLT">0%</b></span>
+                        <span>RT: <b id="visRT">0%</b></span>
+                        <span>LS: <b id="visLS">(0.0, 0.0)</b></span>
+                        <span>RS: <b id="visRS">(0.0, 0.0)</b></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 16 Button Remap Grid -->
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <span class="card-title">BUTTON REMAP CONFIGURATION</span>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px;">
+                        Actions & default keys are fixed. Changing any mapped button swaps automatically — zero duplicates.
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    <span id="activeProfileDesc" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+                    <button class="btn btn-secondary" onclick="resetMappingsToDefault()" style="padding: 0.35rem 0.85rem; font-size: 0.8rem;">↺ Reset to Default</button>
+                </div>
+            </div>
+            <div class="remap-grid" id="remapGrid"></div>
+        </div>
+
+        <!-- Macro Table -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">MACRO ENGINE (Double-Tap & Multi-Button Combos)</span>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary" onclick="addDoubleTapModal()">+ Double-Tap</button>
+                    <button class="btn btn-secondary" onclick="addComboModal()">+ Combo</button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Macro Name</th>
+                            <th>Trigger Type</th>
+                            <th>Trigger Buttons</th>
+                            <th>Target Output</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="macroTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="status-footer">
+    <div>
+        <span class="status-dot" id="statusDot"></span>
+        <span id="engineStatusText">Status: Initializing...</span>
+    </div>
+    <div>ViGEmBus & HidHide Ready | Port 5000</div>
+</div>
+<script>
+    window.APP_CONFIG = {
+        buttonOptions: {{ button_options | tojson }},
+        controllerButtons: {{ controller_buttons | tojson }}
+    };
+</script>
+<script src="/static/js/dashboard.js"></script>
+</body>
+</html>

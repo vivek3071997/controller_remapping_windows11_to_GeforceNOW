@@ -97,9 +97,25 @@ class RemapperEngine(threading.Thread):
         self._lt_seen_negative: bool = False
         self._rt_seen_negative: bool = False
 
+        # Pre-indexed macro cache
+        self._dt_macros: Dict[str, Dict[str, Any]] = {}
+        self._combo_macros: List[Dict[str, Any]] = []
+
     def update_config(self, cfg: EngineConfig) -> None:
         with self._config_lock:
             self._config = cfg
+            # Pre-index double-tap macros for O(1) hot-loop matching
+            self._dt_macros = {
+                m["trigger_buttons"][0]: m
+                for m in cfg.macros
+                if m.get("trigger_type") == "double_tap" and m.get("trigger_buttons")
+            }
+            # Pre-sort combo macros by button count descending
+            self._combo_macros = sorted(
+                [m for m in cfg.macros if m.get("trigger_type") == "combo"],
+                key=lambda m: len(m.get("trigger_buttons", [])),
+                reverse=True
+            )
 
     def _get_config(self) -> EngineConfig:
         with self._config_lock:
@@ -234,41 +250,40 @@ class RemapperEngine(threading.Thread):
             macro_produced_virtual: Set[str] = set()
             active_macro_name = ""
 
-            for macro in cfg.macros:
-                m_type = macro.get("trigger_type", "")
-                m_trigs = macro.get("trigger_buttons", [])
-                m_out = macro.get("output_sequence", [])
-                hold_sec = macro.get("hold_duration_ms", 120) / 1000.0
-
-                if m_type == "double_tap" and len(m_trigs) == 1:
-                    btn = m_trigs[0]
-                    if btn in newly_pressed:
-                        last_t = self._last_press_time.get(btn, 0.0)
-                        if (now - last_t) <= DOUBLE_TAP_WINDOW:
-                            for out_btn in m_out:
-                                self._active_macro_outputs.append({
-                                    "button": out_btn,
-                                    "release_time": now + hold_sec,
-                                    "name": macro.get("name", "Double-Tap")
-                                })
-                            triggered_macro_buttons.add(btn)
-                            self._last_press_time[btn] = 0.0
-                            active_macro_name = macro.get("name", "Double-Tap")
-                            self._last_macro_time = now
-                            self._last_macro_name = active_macro_name
-                            self._last_macro_virtual = list(m_out)
-                        else:
-                            self._last_press_time[btn] = now
-
-                elif m_type == "combo" and len(m_trigs) >= 2:
-                    if all(b in pressed_physical for b in m_trigs):
-                        for out_btn in m_out:
-                            macro_produced_virtual.add(out_btn)
-                        triggered_macro_buttons.update(m_trigs)
-                        active_macro_name = macro.get("name", "Combo")
+            # Fast Double-Tap evaluation: O(1) matching on newly pressed keys
+            for btn in newly_pressed:
+                macro = self._dt_macros.get(btn)
+                if macro:
+                    last_t = self._last_press_time.get(btn, 0.0)
+                    if (now - last_t) <= DOUBLE_TAP_WINDOW:
+                        hold_sec = macro.get("hold_duration_ms", 120) / 1000.0
+                        for out_btn in macro.get("output_sequence", []):
+                            self._active_macro_outputs.append({
+                                "button": out_btn,
+                                "release_time": now + hold_sec,
+                                "name": macro.get("name", "Double-Tap")
+                            })
+                        triggered_macro_buttons.add(btn)
+                        self._last_press_time[btn] = 0.0
+                        active_macro_name = macro.get("name", "Double-Tap")
                         self._last_macro_time = now
                         self._last_macro_name = active_macro_name
-                        self._last_macro_virtual = list(m_out)
+                        self._last_macro_virtual = list(macro.get("output_sequence", []))
+                    else:
+                        self._last_press_time[btn] = now
+
+            # Fast Combo evaluation: sorted by longest trigger combinations
+            for macro in self._combo_macros:
+                m_trigs = macro.get("trigger_buttons", [])
+                if m_trigs and all(b in pressed_physical for b in m_trigs):
+                    for out_btn in macro.get("output_sequence", []):
+                        macro_produced_virtual.add(out_btn)
+                    triggered_macro_buttons.update(m_trigs)
+                    active_macro_name = macro.get("name", "Combo")
+                    self._last_macro_time = now
+                    self._last_macro_name = active_macro_name
+                    self._last_macro_virtual = list(macro.get("output_sequence", []))
+                    break
 
             self._prev_pressed_physical = pressed_physical
 

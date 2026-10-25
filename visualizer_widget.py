@@ -30,6 +30,21 @@ class ControllerVisualizerWidget(QWidget):
         self.macro_virtual = set()
         self.active_actions = []
 
+        # Pre-built reusable Bezier controller contour path
+        self._body_path = QPainterPath()
+        self._body_path.moveTo(90, 60)
+        self._body_path.cubicTo(120, 45, 280, 45, 310, 60)
+        self._body_path.cubicTo(350, 80, 390, 160, 360, 210)
+        self._body_path.cubicTo(340, 240, 300, 210, 270, 180)
+        self._body_path.cubicTo(230, 170, 170, 170, 130, 180)
+        self._body_path.cubicTo(100, 210, 60, 240, 40, 210)
+        self._body_path.cubicTo(10, 160, 50, 80, 90, 60)
+        self._body_path.closeSubpath()
+
+        # Pre-cached reusable UI fonts
+        self._font_bold_8 = QFont("Segoe UI", 8, QFont.Weight.Bold)
+        self._font_bold_9 = QFont("Segoe UI", 9, QFont.Weight.Bold)
+
     def update_telemetry(self, data: dict):
         self.connected = data.get("connected", False)
         self.controller_name = data.get("controller_name", "Connected Gamepad")
@@ -76,22 +91,11 @@ class ControllerVisualizerWidget(QWidget):
             painter.drawText(macro_banner_rect, Qt.AlignmentFlag.AlignCenter, f"MACRO TRIGGERED: {self.active_macro}  ->  [{macro_out_str}]")
 
         # ── 1. Authentic Ergonomic Gamepad Chassis (Bezier Path) ──
-        body_path = QPainterPath()
-        body_path.moveTo(90, 60)
-        body_path.cubicTo(120, 45, 280, 45, 310, 60)
-        body_path.cubicTo(350, 80, 390, 160, 360, 210)
-        body_path.cubicTo(340, 240, 300, 210, 270, 180)
-        body_path.cubicTo(230, 170, 170, 170, 130, 180)
-        body_path.cubicTo(100, 210, 60, 240, 40, 210)
-        body_path.cubicTo(10, 160, 50, 80, 90, 60)
-        body_path.closeSubpath()
-
-        # Shadow / Glow
         body_color = QColor("#FAF5FF") if self.macro_active else QColor("#FFFFFF")
         border_pen = QPen(QColor("#A855F7"), 3.5) if self.macro_active else QPen(QColor("#CBD5E1"), 2.8)
         painter.setPen(border_pen)
         painter.setBrush(QBrush(body_color))
-        painter.drawPath(body_path)
+        painter.drawPath(self._body_path)
 
         # ── 2. Bumpers & Triggers (Top) ────────────────────────────
         # Left Trigger (LT)

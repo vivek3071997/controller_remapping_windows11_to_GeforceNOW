@@ -51,151 +51,8 @@ from profiles import (
 from engine import RemapperEngine, EngineConfig, MappingSignals
 from visualizer_widget import ControllerVisualizerWidget
 import hidhide
-
-# ─── MODULAR WHITE THEME STYLING ────────────────────────────────────
-MODULAR_WHITE_QSS = """
-QMainWindow {
-    background-color: #F8FAFC;
-    color: #0F172A;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-}
-QWidget {
-    background-color: #F8FAFC;
-    color: #0F172A;
-}
-QGroupBox {
-    background-color: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 12px;
-    margin-top: 18px;
-    padding: 16px 14px 12px 14px;
-    font-weight: 700;
-    font-size: 13px;
-    color: #0284C7;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    padding: 2px 10px;
-    left: 14px;
-    background-color: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 6px;
-    color: #0F172A;
-}
-QListWidget {
-    background-color: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 8px;
-    padding: 6px;
-    color: #334155;
-    font-size: 13px;
-}
-QListWidget::item {
-    padding: 10px 14px;
-    border-radius: 6px;
-    margin-bottom: 3px;
-}
-QListWidget::item:selected {
-    background-color: #0284C7;
-    color: #FFFFFF;
-    font-weight: 700;
-}
-QListWidget::item:hover:!selected {
-    background-color: #F1F5F9;
-    color: #0F172A;
-}
-QComboBox {
-    background-color: #FFFFFF;
-    border: 1px solid #CBD5E1;
-    border-radius: 6px;
-    padding: 4px 8px;
-    color: #0F172A;
-    font-weight: 600;
-}
-QComboBox:hover {
-    border: 1px solid #0284C7;
-    background-color: #F8FAFC;
-}
-QComboBox QAbstractItemView {
-    background-color: #FFFFFF;
-    selection-background-color: #0284C7;
-    selection-color: #FFFFFF;
-    color: #0F172A;
-    border: 1px solid #E2E8F0;
-}
-QPushButton {
-    background-color: #FFFFFF;
-    border: 1px solid #CBD5E1;
-    border-radius: 7px;
-    padding: 7px 16px;
-    color: #334155;
-    font-weight: 600;
-    font-size: 13px;
-}
-QPushButton:hover {
-    background-color: #F8FAFC;
-    border-color: #94A3B8;
-    color: #0F172A;
-}
-QPushButton#btn_run {
-    background-color: #0284C7;
-    color: #FFFFFF;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 8px 26px;
-    border: none;
-    border-radius: 7px;
-}
-QPushButton#btn_run:hover {
-    background-color: #0369A1;
-}
-QPushButton#btn_stop {
-    background-color: #EF4444;
-    color: #FFFFFF;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 8px 26px;
-    border: none;
-    border-radius: 7px;
-}
-QPushButton#btn_stop:hover {
-    background-color: #DC2626;
-}
-QTableWidget {
-    background-color: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 8px;
-    gridline-color: #F1F5F9;
-    color: #1E293B;
-}
-QHeaderView::section {
-    background-color: #F1F5F9;
-    color: #475569;
-    padding: 8px 6px;
-    font-weight: 700;
-    font-size: 12px;
-    border: none;
-    border-bottom: 1px solid #E2E8F0;
-}
-QCheckBox {
-    spacing: 8px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #475569;
-}
-QCheckBox::indicator {
-    width: 17px;
-    height: 17px;
-    border-radius: 4px;
-    border: 1px solid #CBD5E1;
-    background-color: #FFFFFF;
-}
-QCheckBox::indicator:checked {
-    background-color: #0284C7;
-    border-color: #0284C7;
-}
-"""
+from styles import MODULAR_WHITE_QSS
+from dialogs import DoubleTapDialog, ComboDialog
 
 class WitcherRemapperUI(QMainWindow):
     def __init__(self):
@@ -667,58 +524,16 @@ class WitcherRemapperUI(QMainWindow):
 
     # ─── Macro Add / Remove ─────────────────────────────────────────
     def _add_double_tap_macro(self):
-        btn, ok = QInputDialog.getItem(
-            self, "Double-Tap Trigger", "Select button to double-tap:",
-            BUTTON_OPTIONS, 1, False
-        )
-        if not ok: return
-
-        out, ok = QInputDialog.getItem(
-            self, "Macro Output", f"Action to emit when double-tapping [{btn}]:",
-            BUTTON_OPTIONS, 0, False
-        )
-        if not ok: return
-
-        name, ok = QInputDialog.getText(
-            self, "Macro Name", "Enter a name for this macro:",
-            text=f"Double-Tap {btn} -> {out}"
-        )
-        if not ok or not name: name = f"Double-Tap {btn}"
-
-        macro = {
-            "name": name,
-            "trigger_type": "double_tap",
-            "trigger_buttons": [btn],
-            "output_sequence": [out],
-            "hold_duration_ms": 120,
-            "interval_ms": 40
-        }
-        self.current_profile.macros.append(macro)
-        self._load_profile_into_ui(self.current_profile)
+        dlg = DoubleTapDialog(self)
+        if dlg.exec():
+            self.current_profile.macros.append(dlg.get_macro_data())
+            self._load_profile_into_ui(self.current_profile)
 
     def _add_combo_macro(self):
-        b1, ok = QInputDialog.getItem(self, "Combo Key 1", "Select first trigger button (e.g. LB):", BUTTON_OPTIONS, 4, False)
-        if not ok: return
-
-        b2, ok = QInputDialog.getItem(self, "Combo Key 2", f"Select second trigger button to hold with [{b1}]:", BUTTON_OPTIONS, 0, False)
-        if not ok: return
-
-        out, ok = QInputDialog.getItem(self, "Combo Output", f"Action to fire when holding [{b1} + {b2}]:", BUTTON_OPTIONS, 7, False)
-        if not ok: return
-
-        name, ok = QInputDialog.getText(self, "Macro Name", "Macro Name:", text=f"Combo {b1}+{b2} -> {out}")
-        if not ok or not name: name = f"Combo {b1}+{b2}"
-
-        macro = {
-            "name": name,
-            "trigger_type": "combo",
-            "trigger_buttons": [b1, b2],
-            "output_sequence": [out],
-            "hold_duration_ms": 120,
-            "interval_ms": 40
-        }
-        self.current_profile.macros.append(macro)
-        self._load_profile_into_ui(self.current_profile)
+        dlg = ComboDialog(self)
+        if dlg.exec():
+            self.current_profile.macros.append(dlg.get_macro_data())
+            self._load_profile_into_ui(self.current_profile)
 
     def _remove_selected_macro(self):
         row = self.macro_table.currentRow()

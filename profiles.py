@@ -286,8 +286,10 @@ class ProfileManager:
                 for p in self.profiles.values()
             ]
         }
-        with open(self.file_path, "w", encoding="utf-8") as f:
+        temp_file = self.file_path.with_suffix(".tmp")
+        with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
+        temp_file.replace(self.file_path)
 
     def get_profile(self, name: str) -> GameProfile:
         if name in self.profiles:
