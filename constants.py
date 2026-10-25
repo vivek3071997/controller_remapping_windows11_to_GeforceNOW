@@ -80,12 +80,17 @@ PHYSICAL_BUTTON_MAP: dict[int, str] = {
 }
 
 # Physical axis indices (pygame)
+# On Windows SDL2 with XInput:
+# Axis 0: LX, Axis 1: LY, Axis 2: LT, Axis 3: RX, Axis 4: RY, Axis 5: RT
 AXIS_LX   = 0  # Left stick horizontal
 AXIS_LY   = 1  # Left stick vertical
-AXIS_RX   = 2  # Right stick horizontal
-AXIS_RY   = 3  # Right stick vertical
-AXIS_LT   = 4  # Left trigger  (–1 … +1, rest = –1)
+AXIS_LT   = 2  # Left trigger  (–1 … +1, rest = –1 on Windows XInput)
+AXIS_RX   = 3  # Right stick horizontal
+AXIS_RY   = 4  # Right stick vertical
 AXIS_RT   = 5  # Right trigger (–1 … +1, rest = –1)
+AXIS_LT_FALLBACK = 4  # Left trigger fallback on older DirectInput drivers
+AXIS_RX_FALLBACK = 2  # Right stick X fallback on older DirectInput drivers
+AXIS_RY_FALLBACK = 3  # Right stick Y fallback on older DirectInput drivers
 
 # Trigger dead zone — treat >0.15 as "pressed" for digital-style actions
 TRIGGER_DIGITAL_THRESHOLD = 0.15

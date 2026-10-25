@@ -96,47 +96,128 @@ class ControllerVisualizerWidget(QWidget):
         # ── 2. Bumpers & Triggers (Top) ────────────────────────────
         # Left Trigger (LT)
         lt_macro = "LT" in self.macro_virtual
-        lt_active = "LT" in self.physical_pressed or self.lt_val > 0.15 or lt_macro
-        lt_color = QColor("#A855F7") if lt_macro else (QColor("#38BDF8") if lt_active else QColor("#F1F5F9"))
-        painter.setPen(QPen(QColor("#C084FC") if lt_macro else QColor("#94A3B8"), 2.0 if (lt_active or lt_macro) else 1.5))
-        painter.setBrush(QBrush(lt_color))
-        painter.drawRoundedRect(QRectF(80, 20, 55, 24), 6, 6)
-        painter.setPen(QColor("#FFFFFF") if (lt_active or lt_macro) else QColor("#0F172A"))
-        painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        lt_text = "LT [M]" if lt_macro else (f"LT {int(self.lt_val*100)}%" if self.lt_val > 0.05 else "LT")
-        painter.drawText(QRectF(80, 20, 55, 24), Qt.AlignmentFlag.AlignCenter, lt_text)
+        lt_active = ("LT" in self.physical_pressed) or ("LT" in self.virtual_pressed) or (self.lt_val > 0.15) or lt_macro
+        lt_rect = QRectF(80, 18, 55, 26)
+        
+        if lt_macro:
+            painter.setPen(QPen(QColor("#C084FC"), 2.4))
+            painter.setBrush(QBrush(QColor("#7C3AED")))
+            painter.drawRoundedRect(lt_rect, 6, 6)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(lt_rect, Qt.AlignmentFlag.AlignCenter, "LT [M]")
+        elif lt_active:
+            # Active illuminated trigger with depth fill
+            painter.setPen(QPen(QColor("#0284C7"), 2.2))
+            painter.setBrush(QBrush(QColor("#0284C7")))
+            painter.drawRoundedRect(lt_rect, 6, 6)
+            # Inner fill meter based on trigger pull
+            fill_pct = max(0.2, self.lt_val) if self.lt_val > 0.05 else 1.0
+            meter_h = (lt_rect.height() - 4) * fill_pct
+            meter_rect = QRectF(lt_rect.left() + 2, lt_rect.bottom() - 2 - meter_h, lt_rect.width() - 4, meter_h)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor("#38BDF8")))
+            painter.drawRoundedRect(meter_rect, 4, 4)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            pct_txt = f"LT {int(self.lt_val * 100)}%" if self.lt_val > 0.05 else "LT"
+            painter.drawText(lt_rect, Qt.AlignmentFlag.AlignCenter, pct_txt)
+        else:
+            # Idle highlighted badge
+            painter.setPen(QPen(QColor("#0284C7"), 2.0))
+            painter.setBrush(QBrush(QColor("#F0F9FF")))
+            painter.drawRoundedRect(lt_rect, 6, 6)
+            painter.setPen(QColor("#0284C7"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(lt_rect, Qt.AlignmentFlag.AlignCenter, "LT")
 
         # Right Trigger (RT)
         rt_macro = "RT" in self.macro_virtual
-        rt_active = "RT" in self.physical_pressed or self.rt_val > 0.15 or rt_macro
-        rt_color = QColor("#A855F7") if rt_macro else (QColor("#38BDF8") if rt_active else QColor("#F1F5F9"))
-        painter.setPen(QPen(QColor("#C084FC") if rt_macro else QColor("#94A3B8"), 2.0 if (rt_active or rt_macro) else 1.5))
-        painter.setBrush(QBrush(rt_color))
-        painter.drawRoundedRect(QRectF(265, 20, 55, 24), 6, 6)
-        painter.setPen(QColor("#FFFFFF") if (rt_active or rt_macro) else QColor("#0F172A"))
-        rt_text = "RT [M]" if rt_macro else (f"RT {int(self.rt_val*100)}%" if self.rt_val > 0.05 else "RT")
-        painter.drawText(QRectF(265, 20, 55, 24), Qt.AlignmentFlag.AlignCenter, rt_text)
+        rt_active = ("RT" in self.physical_pressed) or ("RT" in self.virtual_pressed) or (self.rt_val > 0.15) or rt_macro
+        rt_rect = QRectF(265, 18, 55, 26)
+
+        if rt_macro:
+            painter.setPen(QPen(QColor("#C084FC"), 2.4))
+            painter.setBrush(QBrush(QColor("#7C3AED")))
+            painter.drawRoundedRect(rt_rect, 6, 6)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(rt_rect, Qt.AlignmentFlag.AlignCenter, "RT [M]")
+        elif rt_active:
+            # Active illuminated trigger with depth fill
+            painter.setPen(QPen(QColor("#0284C7"), 2.2))
+            painter.setBrush(QBrush(QColor("#0284C7")))
+            painter.drawRoundedRect(rt_rect, 6, 6)
+            fill_pct = max(0.2, self.rt_val) if self.rt_val > 0.05 else 1.0
+            meter_h = (rt_rect.height() - 4) * fill_pct
+            meter_rect = QRectF(rt_rect.left() + 2, rt_rect.bottom() - 2 - meter_h, rt_rect.width() - 4, meter_h)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor("#38BDF8")))
+            painter.drawRoundedRect(meter_rect, 4, 4)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            pct_txt = f"RT {int(self.rt_val * 100)}%" if self.rt_val > 0.05 else "RT"
+            painter.drawText(rt_rect, Qt.AlignmentFlag.AlignCenter, pct_txt)
+        else:
+            # Idle highlighted badge
+            painter.setPen(QPen(QColor("#0284C7"), 2.0))
+            painter.setBrush(QBrush(QColor("#F0F9FF")))
+            painter.drawRoundedRect(rt_rect, 6, 6)
+            painter.setPen(QColor("#0284C7"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(rt_rect, Qt.AlignmentFlag.AlignCenter, "RT")
 
         # Left Bumper (LB)
         lb_macro = "LB" in self.macro_virtual
-        lb_active = "LB" in self.physical_pressed or lb_macro
-        lb_color = QColor("#7C3AED") if lb_macro else (QColor("#0284C7") if lb_active else QColor("#E2E8F0"))
-        painter.setPen(QPen(QColor("#C084FC") if lb_macro else QColor("#CBD5E1"), 1.8 if lb_active else 1.2))
-        painter.setBrush(QBrush(lb_color))
-        painter.drawRoundedRect(QRectF(75, 48, 65, 16), 5, 5)
-        painter.setPen(QColor("#FFFFFF") if lb_active else QColor("#334155"))
-        painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        painter.drawText(QRectF(75, 48, 65, 16), Qt.AlignmentFlag.AlignCenter, "LB [M]" if lb_macro else "LB")
+        lb_active = ("LB" in self.physical_pressed) or ("LB" in self.virtual_pressed) or lb_macro
+        lb_rect = QRectF(75, 47, 65, 17)
+        if lb_macro:
+            painter.setPen(QPen(QColor("#C084FC"), 2.2))
+            painter.setBrush(QBrush(QColor("#7C3AED")))
+            painter.drawRoundedRect(lb_rect, 5, 5)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(lb_rect, Qt.AlignmentFlag.AlignCenter, "LB [M]")
+        elif lb_active:
+            painter.setPen(QPen(QColor("#0369A1"), 2.2))
+            painter.setBrush(QBrush(QColor("#0284C7")))
+            painter.drawRoundedRect(lb_rect, 5, 5)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(lb_rect, Qt.AlignmentFlag.AlignCenter, "LB")
+        else:
+            painter.setPen(QPen(QColor("#0284C7"), 1.8))
+            painter.setBrush(QBrush(QColor("#FFFFFF")))
+            painter.drawRoundedRect(lb_rect, 5, 5)
+            painter.setPen(QColor("#0284C7"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(lb_rect, Qt.AlignmentFlag.AlignCenter, "LB")
 
         # Right Bumper (RB)
         rb_macro = "RB" in self.macro_virtual
-        rb_active = "RB" in self.physical_pressed or rb_macro
-        rb_color = QColor("#7C3AED") if rb_macro else (QColor("#0284C7") if rb_active else QColor("#E2E8F0"))
-        painter.setPen(QPen(QColor("#C084FC") if rb_macro else QColor("#CBD5E1"), 1.8 if rb_active else 1.2))
-        painter.setBrush(QBrush(rb_color))
-        painter.drawRoundedRect(QRectF(260, 48, 65, 16), 5, 5)
-        painter.setPen(QColor("#FFFFFF") if rb_active else QColor("#334155"))
-        painter.drawText(QRectF(260, 48, 65, 16), Qt.AlignmentFlag.AlignCenter, "RB [M]" if rb_macro else "RB")
+        rb_active = ("RB" in self.physical_pressed) or ("RB" in self.virtual_pressed) or rb_macro
+        rb_rect = QRectF(260, 47, 65, 17)
+        if rb_macro:
+            painter.setPen(QPen(QColor("#C084FC"), 2.2))
+            painter.setBrush(QBrush(QColor("#7C3AED")))
+            painter.drawRoundedRect(rb_rect, 5, 5)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(rb_rect, Qt.AlignmentFlag.AlignCenter, "RB [M]")
+        elif rb_active:
+            painter.setPen(QPen(QColor("#0369A1"), 2.2))
+            painter.setBrush(QBrush(QColor("#0284C7")))
+            painter.drawRoundedRect(rb_rect, 5, 5)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(rb_rect, Qt.AlignmentFlag.AlignCenter, "RB")
+        else:
+            painter.setPen(QPen(QColor("#0284C7"), 1.8))
+            painter.setBrush(QBrush(QColor("#FFFFFF")))
+            painter.drawRoundedRect(rb_rect, 5, 5)
+            painter.setPen(QColor("#0284C7"))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.drawText(rb_rect, Qt.AlignmentFlag.AlignCenter, "RB")
 
         # ── 3. D-Pad Cross ─────────────────────────────────────────
         d_color_base = QColor("#E2E8F0")
@@ -144,7 +225,7 @@ class ControllerVisualizerWidget(QWidget):
         d_color_macro = QColor("#A855F7")
 
         # Up
-        up_active = "Up" in self.physical_pressed
+        up_active = ("Up" in self.physical_pressed) or ("Up" in self.virtual_pressed)
         up_macro = "Up" in self.macro_virtual
         col_up = d_color_macro if up_macro else (d_color_active if up_active else d_color_base)
         painter.setPen(QPen(QColor("#CBD5E1"), 1))
@@ -152,21 +233,21 @@ class ControllerVisualizerWidget(QWidget):
         painter.drawRoundedRect(QRectF(115, 115, 18, 20), 3, 3)
 
         # Down
-        dn_active = "Down" in self.physical_pressed
+        dn_active = ("Down" in self.physical_pressed) or ("Down" in self.virtual_pressed)
         dn_macro = "Down" in self.macro_virtual
         col_dn = d_color_macro if dn_macro else (d_color_active if dn_active else d_color_base)
         painter.setBrush(QBrush(col_dn))
         painter.drawRoundedRect(QRectF(115, 151, 18, 20), 3, 3)
 
         # Left
-        lf_active = "Left" in self.physical_pressed
+        lf_active = ("Left" in self.physical_pressed) or ("Left" in self.virtual_pressed)
         lf_macro = "Left" in self.macro_virtual
         col_lf = d_color_macro if lf_macro else (d_color_active if lf_active else d_color_base)
         painter.setBrush(QBrush(col_lf))
         painter.drawRoundedRect(QRectF(97, 133, 20, 18), 3, 3)
 
         # Right
-        rt_dpad_active = "Right" in self.physical_pressed
+        rt_dpad_active = ("Right" in self.physical_pressed) or ("Right" in self.virtual_pressed)
         rt_dpad_macro = "Right" in self.macro_virtual
         col_rt = d_color_macro if rt_dpad_macro else (d_color_active if rt_dpad_active else d_color_base)
         painter.setBrush(QBrush(col_rt))
@@ -187,7 +268,7 @@ class ControllerVisualizerWidget(QWidget):
 
         for b_name, bx, by, glow_col in buttons_def:
             is_macro_btn = b_name in self.macro_virtual
-            is_pressed = b_name in self.physical_pressed
+            is_pressed = (b_name in self.physical_pressed) or (b_name in self.virtual_pressed)
 
             if is_macro_btn:
                 # Glowing Neon Purple Pulse Halo
@@ -224,7 +305,7 @@ class ControllerVisualizerWidget(QWidget):
         painter.drawEllipse(QPointF(125, 95), 22, 22)
 
         # Moving Left Nub
-        ls_pressed = "LS" in self.physical_pressed
+        ls_pressed = ("LS" in self.physical_pressed) or ("LS" in self.virtual_pressed)
         ls_nub_x = 125 + self.lx_val * 14
         ls_nub_y = 95 + self.ly_val * 14
         painter.setPen(QPen(QColor("#0284C7") if ls_pressed else QColor("#94A3B8"), 2))
@@ -240,7 +321,7 @@ class ControllerVisualizerWidget(QWidget):
         painter.drawEllipse(QPointF(240, 150), 22, 22)
 
         # Moving Right Nub
-        rs_pressed = "RS" in self.physical_pressed
+        rs_pressed = ("RS" in self.physical_pressed) or ("RS" in self.virtual_pressed)
         rs_nub_x = 240 + self.rx_val * 14
         rs_nub_y = 150 + self.ry_val * 14
         painter.setPen(QPen(QColor("#0284C7") if rs_pressed else QColor("#94A3B8"), 2))
@@ -252,13 +333,13 @@ class ControllerVisualizerWidget(QWidget):
 
         # ── 6. Center Navigation (BACK, XBOX GUIDE, START) ─────────
         # BACK / VIEW (x=170, y=95)
-        back_active = "BACK" in self.physical_pressed
+        back_active = ("BACK" in self.physical_pressed) or ("BACK" in self.virtual_pressed)
         painter.setPen(QPen(QColor("#CBD5E1"), 1.2))
         painter.setBrush(QBrush(QColor("#0284C7") if back_active else QColor("#E2E8F0")))
         painter.drawRoundedRect(QRectF(170, 95, 14, 10), 3, 3)
 
         # START / MENU (x=216, y=95)
-        start_active = "START" in self.physical_pressed
+        start_active = ("START" in self.physical_pressed) or ("START" in self.virtual_pressed)
         painter.setBrush(QBrush(QColor("#0284C7") if start_active else QColor("#E2E8F0")))
         painter.drawRoundedRect(QRectF(216, 95, 14, 10), 3, 3)
 

@@ -453,17 +453,17 @@ HTML_DASHBOARD = """
                         <path id="svg_GamepadBody" d="M 90,60 C 120,45 280,45 310,60 C 350,80 390,160 360,210 C 340,240 300,210 270,180 C 230,170 170,170 130,180 C 100,210 60,240 40,210 C 10,160 50,80 90,60 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" />
                         
                         <!-- Triggers & Bumpers -->
-                        <rect id="svg_LT" x="80" y="20" width="55" height="24" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="2"/>
-                        <text x="107" y="36" font-size="10" font-weight="bold" fill="#0F172A" text-anchor="middle">LT</text>
+                        <rect id="svg_LT" x="80" y="20" width="55" height="24" rx="6" fill="#F0F9FF" stroke="#0284C7" stroke-width="2"/>
+                        <text id="svg_LT_Text" x="107" y="36" font-size="10" font-weight="bold" fill="#0284C7" text-anchor="middle">LT</text>
                         
-                        <rect id="svg_RT" x="265" y="20" width="55" height="24" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="2"/>
-                        <text x="292" y="36" font-size="10" font-weight="bold" fill="#0F172A" text-anchor="middle">RT</text>
+                        <rect id="svg_RT" x="265" y="20" width="55" height="24" rx="6" fill="#F0F9FF" stroke="#0284C7" stroke-width="2"/>
+                        <text id="svg_RT_Text" x="292" y="36" font-size="10" font-weight="bold" fill="#0284C7" text-anchor="middle">RT</text>
 
-                        <rect id="svg_LB" x="75" y="48" width="65" height="16" rx="5" fill="#E2E8F0" stroke="#CBD5E1" stroke-width="1.5"/>
-                        <text x="107" y="60" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">LB</text>
+                        <rect id="svg_LB" x="75" y="48" width="65" height="16" rx="5" fill="#FFFFFF" stroke="#0284C7" stroke-width="1.8"/>
+                        <text id="svg_LB_Text" x="107" y="60" font-size="9" font-weight="bold" fill="#0284C7" text-anchor="middle">LB</text>
 
-                        <rect id="svg_RB" x="260" y="48" width="65" height="16" rx="5" fill="#E2E8F0" stroke="#CBD5E1" stroke-width="1.5"/>
-                        <text x="292" y="60" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">RB</text>
+                        <rect id="svg_RB" x="260" y="48" width="65" height="16" rx="5" fill="#FFFFFF" stroke="#0284C7" stroke-width="1.8"/>
+                        <text id="svg_RB_Text" x="292" y="60" font-size="9" font-weight="bold" fill="#0284C7" text-anchor="middle">RB</text>
 
                         <!-- D-Pad -->
                         <g id="svg_Dpad">
@@ -901,10 +901,11 @@ HTML_DASHBOARD = """
             const el = document.getElementById('svg_' + b);
             if (!el) return;
             const isMacroTarget = macroVirt.includes(b);
-            const isPressed = phys.includes(b) || isMacroTarget;
+            const isPressed = phys.includes(b) || virt.includes(b) || isMacroTarget;
 
             if (isMacroTarget) {
                 el.setAttribute('fill', '#A855F7');
+                el.setAttribute('stroke', '#C084FC');
                 el.classList.add('svg-macro-active');
             } else {
                 el.classList.remove('svg-macro-active');
@@ -912,9 +913,39 @@ HTML_DASHBOARD = """
                 else if (b === 'B') el.setAttribute('fill', isPressed ? '#EF4444' : '#FFFFFF');
                 else if (b === 'X') el.setAttribute('fill', isPressed ? '#3B82F6' : '#FFFFFF');
                 else if (b === 'Y') el.setAttribute('fill', isPressed ? '#EAB308' : '#FFFFFF');
-                else if (b === 'LT' || b === 'RT') el.setAttribute('fill', (isPressed || (b==='LT' && t.lt>0.15) || (b==='RT' && t.rt>0.15)) ? '#38BDF8' : '#F1F5F9');
-                else if (b === 'LB' || b === 'RB') el.setAttribute('fill', isPressed ? '#0284C7' : '#E2E8F0');
-                else el.setAttribute('fill', isPressed ? '#0284C7' : '#E2E8F0');
+                else if (b === 'LT') {
+                    const ltOn = isPressed || phys.includes('LT') || virt.includes('LT') || (t.lt > 0.15);
+                    el.setAttribute('fill', ltOn ? '#0284C7' : '#F0F9FF');
+                    el.setAttribute('stroke', ltOn ? '#0369A1' : '#0284C7');
+                    const txt = document.getElementById('svg_LT_Text');
+                    if (txt) {
+                        txt.setAttribute('fill', ltOn ? '#FFFFFF' : '#0284C7');
+                        txt.textContent = (t.lt > 0.05) ? ('LT ' + Math.round(t.lt * 100) + '%') : 'LT';
+                    }
+                } else if (b === 'RT') {
+                    const rtOn = isPressed || phys.includes('RT') || virt.includes('RT') || (t.rt > 0.15);
+                    el.setAttribute('fill', rtOn ? '#0284C7' : '#F0F9FF');
+                    el.setAttribute('stroke', rtOn ? '#0369A1' : '#0284C7');
+                    const txt = document.getElementById('svg_RT_Text');
+                    if (txt) {
+                        txt.setAttribute('fill', rtOn ? '#FFFFFF' : '#0284C7');
+                        txt.textContent = (t.rt > 0.05) ? ('RT ' + Math.round(t.rt * 100) + '%') : 'RT';
+                    }
+                } else if (b === 'LB') {
+                    const lbOn = isPressed || phys.includes('LB') || virt.includes('LB');
+                    el.setAttribute('fill', lbOn ? '#0284C7' : '#FFFFFF');
+                    el.setAttribute('stroke', lbOn ? '#0369A1' : '#0284C7');
+                    const txt = document.getElementById('svg_LB_Text');
+                    if (txt) txt.setAttribute('fill', lbOn ? '#FFFFFF' : '#0284C7');
+                } else if (b === 'RB') {
+                    const rbOn = isPressed || phys.includes('RB') || virt.includes('RB');
+                    el.setAttribute('fill', rbOn ? '#0284C7' : '#FFFFFF');
+                    el.setAttribute('stroke', rbOn ? '#0369A1' : '#0284C7');
+                    const txt = document.getElementById('svg_RB_Text');
+                    if (txt) txt.setAttribute('fill', rbOn ? '#FFFFFF' : '#0284C7');
+                } else {
+                    el.setAttribute('fill', isPressed ? '#0284C7' : '#E2E8F0');
+                }
             }
         });
 

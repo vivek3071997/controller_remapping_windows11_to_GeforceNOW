@@ -155,9 +155,25 @@ class RemapperEngine(threading.Thread):
 
             try:
                 num_buttons = joy.get_numbuttons()
-                for idx, label in PHYSICAL_BUTTON_MAP.items():
-                    if idx < num_buttons and joy.get_button(idx):
-                        pressed_physical.add(label)
+                num_axes = joy.get_numaxes()
+                ctrl_name_lower = (joy.get_name() or "").lower()
+
+                # PlayStation / DirectInput controller detection
+                is_playstation = any(k in ctrl_name_lower for k in ("ps4", "ps5", "dualshock", "dualsense", "wireless controller"))
+
+                if is_playstation:
+                    ps_button_map = {
+                        0: "X", 1: "A", 2: "B", 3: "Y",
+                        4: "LB", 5: "RB", 6: "LT", 7: "RT",
+                        8: "BACK", 9: "START", 10: "LS", 11: "RS"
+                    }
+                    for idx, label in ps_button_map.items():
+                        if idx < num_buttons and joy.get_button(idx):
+                            pressed_physical.add(label)
+                else:
+                    for idx, label in PHYSICAL_BUTTON_MAP.items():
+                        if idx < num_buttons and joy.get_button(idx):
+                            pressed_physical.add(label)
 
                 # Read D-Pad (Hat)
                 if joy.get_numhats() > 0:
@@ -167,22 +183,62 @@ class RemapperEngine(threading.Thread):
                     if hat[0] == -1: pressed_physical.add("Left")
                     elif hat[0] == 1: pressed_physical.add("Right")
 
-                # Read and Normalize Triggers [-1.0, 1.0] -> [0.0, 1.0]
-                raw_lt = joy.get_axis(AXIS_LT) if joy.get_numaxes() > AXIS_LT else -1.0
-                raw_rt = joy.get_axis(AXIS_RT) if joy.get_numaxes() > AXIS_RT else -1.0
-                lt_val = max(0.0, min(1.0, (raw_lt + 1.0) / 2.0))
-                rt_val = max(0.0, min(1.0, (raw_rt + 1.0) / 2.0))
+                # Read Triggers & Analog Sticks (supporting Windows XInput & DirectInput)
+                lt_val = 0.0
+                rt_val = 0.0
+                lx, ly, rx, ry = 0.0, 0.0, 0.0, 0.0
+
+                if num_axes >= 6:
+                    a0 = joy.get_axis(0)
+                    a1 = joy.get_axis(1)
+                    a2 = joy.get_axis(2)
+                    a3 = joy.get_axis(3)
+                    a4 = joy.get_axis(4)
+                    a5 = joy.get_axis(5)
+
+                    lx = a0
+                    ly = a1
+
+                    # Auto-detect whether Axis 2 is LT (Windows XInput standard) or Axis 4 is LT
+                    # On Windows XInput (SDL2), triggers rest at -1.0, while sticks rest around 0.0.
+                    if "xbox" in ctrl_name_lower or "xinput" in ctrl_name_lower or a2 < -0.5:
+                        raw_lt = a2
+                        raw_rt = a5
+                        rx = a3
+                        ry = a4
+                    elif a4 < -0.5:
+                        raw_lt = a4
+                        raw_rt = a5
+                        rx = a2
+                        ry = a3
+                    else:
+                        # Fallback normalization
+                        raw_lt = a2 if abs(a2 + 1.0) < abs(a4 + 1.0) else a4
+                        raw_rt = a5
+                        rx = a3 if raw_lt == a2 else a2
+                        ry = a4 if raw_lt == a2 else a3
+
+                    lt_val = max(0.0, min(1.0, (raw_lt + 1.0) / 2.0))
+                    rt_val = max(0.0, min(1.0, (raw_rt + 1.0) / 2.0))
+                elif num_axes >= 4:
+                    lx = joy.get_axis(0)
+                    ly = joy.get_axis(1)
+                    rx = joy.get_axis(2)
+                    ry = joy.get_axis(3)
+                    if num_axes > 4:
+                        raw_lt = joy.get_axis(4)
+                        lt_val = max(0.0, min(1.0, (raw_lt + 1.0) / 2.0))
+
+                # If digital button was pressed for LT/RT, treat as 100% pressed
+                if "LT" in pressed_physical and lt_val < 0.5:
+                    lt_val = 1.0
+                if "RT" in pressed_physical and rt_val < 0.5:
+                    rt_val = 1.0
 
                 if lt_val > TRIGGER_DIGITAL_THRESHOLD:
                     pressed_physical.add("LT")
                 if rt_val > TRIGGER_DIGITAL_THRESHOLD:
                     pressed_physical.add("RT")
-
-                # Read Analog Sticks
-                lx = joy.get_axis(AXIS_LX) if joy.get_numaxes() > AXIS_LX else 0.0
-                ly = joy.get_axis(AXIS_LY) if joy.get_numaxes() > AXIS_LY else 0.0
-                rx = joy.get_axis(AXIS_RX) if joy.get_numaxes() > AXIS_RX else 0.0
-                ry = joy.get_axis(AXIS_RY) if joy.get_numaxes() > AXIS_RY else 0.0
             except Exception:
                 joy = None
                 continue
