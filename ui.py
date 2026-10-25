@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (
 
 from constants import BUTTON_OPTIONS, DEFAULT_MAPPING
 from engine import EngineConfig, MappingSignals, RemapperEngine
+import hidhide
 
 # ──────────────────────────────────────────────────────────────────────
 # Colour palette (warm parchment theme)
@@ -139,8 +140,11 @@ class WitcherRemapperUI(QMainWindow):
         self._chk_throw = QCheckBox("Use Left Stick for Throw Aiming")
         self._chk_swap  = QCheckBox("Swap Dodge with Roll")
         self._chk_horse = QCheckBox("Horse Acceleration on Left Stick")
+        self._chk_hidhide = QCheckBox("Hide Physical Controller (HidHide)")
+        self._chk_hidhide.setChecked(True)
+        self._chk_hidhide.setToolTip("Hides physical controller from GeForce NOW to prevent double input")
 
-        for chk in (self._chk_throw, self._chk_swap, self._chk_horse):
+        for chk in (self._chk_throw, self._chk_swap, self._chk_horse, self._chk_hidhide):
             chk.setStyleSheet("font-size: 12px;")
             adv_lay.addWidget(chk)
 
@@ -267,6 +271,8 @@ class WitcherRemapperUI(QMainWindow):
             # ── Stop ──
             self._engine.stop()
             self._engine = None
+            if self._chk_hidhide.isChecked() and hidhide.is_hidhide_available():
+                hidhide.disable_hidhide_cloaking()
             self._btn_run.setText("▶ Run")
             self._btn_run.setStyleSheet(
                 f"background-color: {_BTN_PRIMARY}; color: white; "
@@ -275,6 +281,10 @@ class WitcherRemapperUI(QMainWindow):
             self._status.setText("Status: Interception stopped.")
         else:
             # ── Start ──
+            if self._chk_hidhide.isChecked() and hidhide.is_hidhide_available():
+                self._status.setText("Status: Configuring HidHide device cloaking...")
+                hidhide.setup_hidhide_for_remapper()
+
             self._engine = RemapperEngine(self.signals)
             self._engine.update_config(self._current_config())
             self._engine.start()
@@ -328,4 +338,6 @@ class WitcherRemapperUI(QMainWindow):
     def closeEvent(self, event) -> None:  # noqa: N802
         if self._engine and self._engine.running:
             self._engine.stop()
+        if self._chk_hidhide.isChecked() and hidhide.is_hidhide_available():
+            hidhide.disable_hidhide_cloaking()
         event.accept()
