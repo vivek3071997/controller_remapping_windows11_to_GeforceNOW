@@ -7,11 +7,10 @@ GeForce NOW or any Windows game.
 
 Features:
   - 1:1 customizable button remapping per game profile
-  - Macro execution:
-      * Double-tap detection (e.g. double-tap B -> dodge or sequence)
-      * Multi-button combos (e.g. LB + X -> instant RT sign cast or complex macro)
+  - Macro execution (Double-tap & multi-button combos)
   - Full analog trigger gradient handling (0.0 to 1.0)
   - Stick deadzones and axis normalization
+  - Real-time telemetry broadcast for live visualizer (physical & virtual state)
 """
 
 from __future__ import annotations
@@ -42,7 +41,8 @@ from constants import (
 
 class MappingSignals(QObject):
     status_updated = pyqtSignal(str)
-    input_activity = pyqtSignal(str)  # Sends real-time detected button labels to UI
+    # Broadcasts live state: (controller_name, physical_buttons, virtual_buttons, lt_val, rt_val, lx, ly, rx, ry)
+    telemetry_updated = pyqtSignal(dict)
 
 @dataclass
 class EngineConfig:
@@ -50,6 +50,24 @@ class EngineConfig:
     button_mapping: Dict[str, str] = field(default_factory=dict)
     # List of macros defined for this profile
     macros: List[Dict[str, Any]] = field(default_factory=list)
+
+# Global shared telemetry dictionary for Web UI and background listeners
+CURRENT_TELEMETRY: Dict[str, Any] = {
+    "connected": False,
+    "controller_name": "No controller detected",
+    "buttons_num": 0,
+    "axes_num": 0,
+    "hats_num": 0,
+    "physical_pressed": [],
+    "virtual_pressed": [],
+    "lt": 0.0,
+    "rt": 0.0,
+    "lx": 0.0,
+    "ly": 0.0,
+    "rx": 0.0,
+    "ry": 0.0,
+    "last_macro": ""
+}
 
 class RemapperEngine(threading.Thread):
     def __init__(self, signals: MappingSignals) -> None:
@@ -66,8 +84,7 @@ class RemapperEngine(threading.Thread):
         self._last_press_time: Dict[str, float] = {}
         self._prev_pressed_physical: Set[str] = set()
 
-        # Active macro execution state: list of dicts
-        # [{ "buttons": ['RT'], "release_time": float }]
+        # Active macro execution state
         self._active_macro_outputs: List[Dict[str, Any]] = []
 
     def update_config(self, cfg: EngineConfig) -> None:
@@ -79,11 +96,14 @@ class RemapperEngine(threading.Thread):
             return self._config
 
     def run(self) -> None:
+        global CURRENT_TELEMETRY
         pygame.init()
         pygame.joystick.init()
 
         if pygame.joystick.get_count() == 0:
             self.signals.status_updated.emit("Error: No physical controller found.")
+            CURRENT_TELEMETRY["connected"] = False
+            CURRENT_TELEMETRY["controller_name"] = "No controller detected"
             return
 
         # Initialize physical gamepad FIRST
@@ -97,12 +117,23 @@ class RemapperEngine(threading.Thread):
             self.signals.status_updated.emit(f"ViGEmBus Error: {exc}")
             return
 
+        ctrl_name = joy.get_name()
         self.running = True
-        self.signals.status_updated.emit(f"Active -- Remapping '{joy.get_name()}' -> Virtual Xbox 360")
+        self.signals.status_updated.emit(f"Active -- Remapping '{ctrl_name}' -> Virtual Xbox 360")
+
+        CURRENT_TELEMETRY.update({
+            "connected": True,
+            "controller_name": ctrl_name,
+            "buttons_num": joy.get_numbuttons(),
+            "axes_num": joy.get_numaxes(),
+            "hats_num": joy.get_numhats()
+        })
 
         # Prime event pump to calibrate resting axis baseline
         pygame.event.pump()
         time.sleep(0.05)
+
+        last_telemetry_emit = 0.0
 
         while self.running:
             pygame.event.pump()
@@ -143,10 +174,10 @@ class RemapperEngine(threading.Thread):
             ry = joy.get_axis(AXIS_RY) if joy.get_numaxes() > AXIS_RY else 0.0
 
             # ─── 2. Evaluate Macros (Double-Tap & Combos) ────────────
-            # Detect rising edges (buttons newly pressed this frame)
             newly_pressed = pressed_physical - self._prev_pressed_physical
             triggered_macro_buttons: Set[str] = set()
             macro_produced_virtual: Set[str] = set()
+            active_macro_name = ""
 
             for macro in cfg.macros:
                 m_type = macro.get("trigger_type", "")
@@ -159,24 +190,24 @@ class RemapperEngine(threading.Thread):
                     if btn in newly_pressed:
                         last_t = self._last_press_time.get(btn, 0.0)
                         if (now - last_t) <= DOUBLE_TAP_WINDOW:
-                            # Double-tap detected!
+                            # Double-tap detected
                             for out_btn in m_out:
                                 self._active_macro_outputs.append({
                                     "button": out_btn,
-                                    "release_time": now + hold_sec
+                                    "release_time": now + hold_sec,
+                                    "name": macro.get("name", "Double-Tap")
                                 })
                             triggered_macro_buttons.add(btn)
-                            self._last_press_time[btn] = 0.0  # reset
+                            self._last_press_time[btn] = 0.0
                         else:
                             self._last_press_time[btn] = now
 
                 elif m_type == "combo" and len(m_trigs) >= 2:
-                    # All combo trigger buttons must be pressed
                     if all(b in pressed_physical for b in m_trigs):
                         for out_btn in m_out:
                             macro_produced_virtual.add(out_btn)
-                        # Suppress individual buttons involved in the combo
                         triggered_macro_buttons.update(m_trigs)
+                        active_macro_name = macro.get("name", "Combo")
 
             self._prev_pressed_physical = pressed_physical
 
@@ -186,6 +217,7 @@ class RemapperEngine(threading.Thread):
                 if now < item["release_time"]:
                     macro_produced_virtual.add(item["button"])
                     still_active_macros.append(item)
+                    active_macro_name = item.get("name", active_macro_name)
             self._active_macro_outputs = still_active_macros
 
             # ─── 3. Standard Profile Remapping ───────────────────────
@@ -193,7 +225,7 @@ class RemapperEngine(threading.Thread):
 
             for phys_btn in pressed_physical:
                 if phys_btn in triggered_macro_buttons:
-                    continue  # Intercepted by macro
+                    continue
                 target_virt = cfg.button_mapping.get(phys_btn, phys_btn)
                 pressed_virtual.add(target_virt)
 
@@ -212,7 +244,7 @@ class RemapperEngine(threading.Thread):
             self._vpad.left_trigger_float(value_float=v_lt)
             self._vpad.right_trigger_float(value_float=v_rt)
 
-            # Forward analog joysticks (Pygame Y is inverted vs XInput)
+            # Forward analog joysticks
             self._vpad.left_joystick_float(
                 x_value_float=max(-1.0, min(1.0, lx)),
                 y_value_float=max(-1.0, min(1.0, -ly))
@@ -223,10 +255,33 @@ class RemapperEngine(threading.Thread):
             )
 
             self._vpad.update()
+
+            # ─── 5. Update Telemetry Broadcast (~30 Hz) ─────────────
+            if now - last_telemetry_emit >= 0.033:
+                last_telemetry_emit = now
+                telemetry_payload = {
+                    "connected": True,
+                    "controller_name": ctrl_name,
+                    "physical_pressed": sorted(list(pressed_physical)),
+                    "virtual_pressed": sorted(list(pressed_virtual)),
+                    "lt": round(lt_val, 2),
+                    "rt": round(rt_val, 2),
+                    "lx": round(lx, 2),
+                    "ly": round(ly, 2),
+                    "rx": round(rx, 2),
+                    "ry": round(ry, 2),
+                    "last_macro": active_macro_name
+                }
+                CURRENT_TELEMETRY.update(telemetry_payload)
+                self.signals.telemetry_updated.emit(telemetry_payload)
+
             time.sleep(ENGINE_POLL_INTERVAL)
 
     def stop(self) -> None:
+        global CURRENT_TELEMETRY
         self.running = False
+        CURRENT_TELEMETRY["physical_pressed"] = []
+        CURRENT_TELEMETRY["virtual_pressed"] = []
         time.sleep(ENGINE_POLL_INTERVAL * 2)
         try:
             pygame.quit()

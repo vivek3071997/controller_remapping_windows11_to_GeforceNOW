@@ -42,6 +42,7 @@ from PyQt6.QtWidgets import (
 from constants import BUTTON_OPTIONS
 from profiles import ProfileManager, GameProfile, CONTROLLER_BUTTONS
 from engine import RemapperEngine, EngineConfig, MappingSignals
+from visualizer_widget import ControllerVisualizerWidget
 import hidhide
 
 # ─── MODULAR WHITE THEME STYLING ────────────────────────────────────
@@ -196,6 +197,7 @@ class WitcherRemapperUI(QMainWindow):
         self.current_profile: GameProfile = self.profile_mgr.get_profile("General Gamepad (Default)")
         self.signals = MappingSignals()
         self.signals.status_updated.connect(self._on_status)
+        self.signals.telemetry_updated.connect(self._on_telemetry)
         self._engine: RemapperEngine | None = None
         self._dropdowns: dict[str, QComboBox] = {}
         self._action_labels: dict[str, QLabel] = {}
@@ -248,11 +250,21 @@ class WitcherRemapperUI(QMainWindow):
         # ─── Main Content Splitter (Left: Games, Right: Mapping & Macros)
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # ─── LEFT PANEL: Game Profiles ───────────────────────────────
+        # ─── LEFT PANEL: Game Profiles & Visualizer ──────────────────
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 8, 0)
+        left_layout.setSpacing(10)
 
+        # 1. Controller Visualizer Box
+        vis_group = QGroupBox("HARDWARE CONTROLLER VISUALIZER")
+        vis_layout = QVBoxLayout(vis_group)
+        vis_layout.setContentsMargins(8, 14, 8, 8)
+        self.visualizer = ControllerVisualizerWidget()
+        vis_layout.addWidget(self.visualizer)
+        left_layout.addWidget(vis_group)
+
+        # 2. Game Profiles Box
         games_group = QGroupBox("GAME PROFILES")
         games_layout = QVBoxLayout(games_group)
 
@@ -590,6 +602,9 @@ class WitcherRemapperUI(QMainWindow):
 
     def _on_status(self, msg: str):
         self.status_bar.setText(msg)
+
+    def _on_telemetry(self, data: dict):
+        self.visualizer.update_telemetry(data)
 
     def closeEvent(self, event):
         if self._engine and self._engine.running:

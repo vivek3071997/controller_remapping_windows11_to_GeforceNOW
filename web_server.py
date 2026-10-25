@@ -381,8 +381,103 @@ HTML_DASHBOARD = """
         <button class="btn btn-success" onclick="saveCurrentProfile()">💾 Save Changes</button>
     </div>
 
-    <!-- RIGHT: Remapping Matrix & Macros -->
+    <!-- RIGHT: Visualizer, Remapping Matrix & Macros -->
     <div class="main-panel">
+        <!-- Interactive Controller Visualizer -->
+        <div class="card" style="padding: 1.25rem 1.5rem;">
+            <div class="card-header" style="margin-bottom: 0.75rem;">
+                <span class="card-title">HARDWARE CONTROLLER VISUALIZER</span>
+                <span id="visControllerName" class="badge" style="background:#E2E8F0; color:#334155;">Controller: Checking...</span>
+            </div>
+            <div style="display: flex; gap: 2rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+                <!-- Vector Gamepad SVG -->
+                <div style="flex: 1; min-width: 320px; max-width: 440px;">
+                    <svg id="gamepadSvg" viewBox="0 0 400 240" style="width: 100%; height: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.06));">
+                        <!-- Gamepad Base Body -->
+                        <path d="M 90,60 C 120,45 280,45 310,60 C 350,80 390,160 360,210 C 340,240 300,210 270,180 C 230,170 170,170 130,180 C 100,210 60,240 40,210 C 10,160 50,80 90,60 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" />
+                        
+                        <!-- Triggers & Bumpers -->
+                        <rect id="svg_LT" x="80" y="20" width="55" height="24" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="2"/>
+                        <text x="107" y="36" font-size="10" font-weight="bold" fill="#0F172A" text-anchor="middle">LT</text>
+                        
+                        <rect id="svg_RT" x="265" y="20" width="55" height="24" rx="6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="2"/>
+                        <text x="292" y="36" font-size="10" font-weight="bold" fill="#0F172A" text-anchor="middle">RT</text>
+
+                        <rect id="svg_LB" x="75" y="48" width="65" height="16" rx="5" fill="#E2E8F0" stroke="#CBD5E1" stroke-width="1.5"/>
+                        <text x="107" y="60" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">LB</text>
+
+                        <rect id="svg_RB" x="260" y="48" width="65" height="16" rx="5" fill="#E2E8F0" stroke="#CBD5E1" stroke-width="1.5"/>
+                        <text x="292" y="60" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">RB</text>
+
+                        <!-- D-Pad -->
+                        <g id="svg_Dpad">
+                            <rect id="svg_Up" x="115" y="115" width="18" height="20" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                            <rect id="svg_Down" x="115" y="151" width="18" height="20" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                            <rect id="svg_Left" x="97" y="133" width="20" height="18" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                            <rect id="svg_Right" x="131" y="133" width="20" height="18" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                            <rect x="115" y="133" width="18" height="18" fill="#E2E8F0" />
+                        </g>
+
+                        <!-- ABXY Cluster -->
+                        <g id="svg_ABXY">
+                            <circle id="svg_Y" cx="285" cy="80" r="12" fill="#FFFFFF" stroke="#EAB308" stroke-width="2" />
+                            <text x="285" y="84" font-size="10" font-weight="bold" fill="#CA8A04" text-anchor="middle">Y</text>
+
+                            <circle id="svg_A" cx="285" cy="130" r="12" fill="#FFFFFF" stroke="#22C55E" stroke-width="2" />
+                            <text x="285" y="134" font-size="10" font-weight="bold" fill="#16A34A" text-anchor="middle">A</text>
+
+                            <circle id="svg_X" cx="260" cy="105" r="12" fill="#FFFFFF" stroke="#3B82F6" stroke-width="2" />
+                            <text x="260" y="109" font-size="10" font-weight="bold" fill="#2563EB" text-anchor="middle">X</text>
+
+                            <circle id="svg_B" cx="310" cy="105" r="12" fill="#FFFFFF" stroke="#EF4444" stroke-width="2" />
+                            <text x="310" y="109" font-size="10" font-weight="bold" fill="#DC2626" text-anchor="middle">B</text>
+                        </g>
+
+                        <!-- Analog Sticks -->
+                        <!-- Left Stick (Upper Left) -->
+                        <circle cx="125" cy="95" r="22" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="2" />
+                        <circle id="svg_LS_Nub" cx="125" cy="95" r="15" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2" />
+                        <text id="svg_LS_Text" x="125" y="99" font-size="8" font-weight="bold" fill="#64748B" text-anchor="middle">LS</text>
+
+                        <!-- Right Stick (Lower Right) -->
+                        <circle cx="240" cy="150" r="22" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="2" />
+                        <circle id="svg_RS_Nub" cx="240" cy="150" r="15" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2" />
+                        <text id="svg_RS_Text" x="240" y="154" font-size="8" font-weight="bold" fill="#64748B" text-anchor="middle">RS</text>
+
+                        <!-- Center Nav (BACK, LOGO, START) -->
+                        <rect id="svg_BACK" x="170" y="95" width="14" height="10" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                        <rect id="svg_START" x="216" y="95" width="14" height="10" rx="3" fill="#E2E8F0" stroke="#CBD5E1" />
+                        <circle cx="200" cy="80" r="12" fill="#FFFFFF" stroke="#0284C7" stroke-width="2" />
+                        <text x="200" y="84" font-size="10" font-weight="bold" fill="#0284C7" text-anchor="middle">⮞</text>
+                    </svg>
+                </div>
+
+                <!-- Telemetry Readout Box -->
+                <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 0.6rem;">
+                    <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Real-Time Action Translation</div>
+                        <div id="visLiveAction" style="font-size: 1rem; font-weight: 800; color: #0284C7; margin-top: 4px;">Press any button on controller...</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                        <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.75rem;">
+                            <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary);">PHYSICAL BUTTON</div>
+                            <div id="visPhysicalKeys" style="font-size: 0.95rem; font-weight: 700; color: #0F172A;">None</div>
+                        </div>
+                        <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.75rem;">
+                            <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary);">VIRTUAL OUTPUT</div>
+                            <div id="visVirtualKeys" style="font-size: 0.95rem; font-weight: 700; color: #10B981;">None</div>
+                        </div>
+                    </div>
+                    <div style="background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.75rem; display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600;">
+                        <span>LT: <b id="visLT">0%</b></span>
+                        <span>RT: <b id="visRT">0%</b></span>
+                        <span>LS: <b id="visLS">(0.0, 0.0)</b></span>
+                        <span>RS: <b id="visRS">(0.0, 0.0)</b></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 16 Button Remap Grid -->
         <div class="card">
             <div class="card-header">
@@ -615,6 +710,89 @@ HTML_DASHBOARD = """
             btn.innerText = '▶ RUN REMAPPER';
             if (rgb) rgb.className = 'rgb-strip';
         }
+
+        // Live Telemetry Visualizer Update
+        const t = data.telemetry || {};
+        updateVisualizer(t);
+    }
+
+    function updateVisualizer(t) {
+        if (!t) return;
+        const nameBadge = document.getElementById('visControllerName');
+        if (t.connected) {
+            nameBadge.innerText = "Connected: " + (t.controller_name || "Gamepad");
+            nameBadge.style.background = "#DCFCE7";
+            nameBadge.style.color = "#15803D";
+        } else {
+            nameBadge.innerText = "No Controller Connected";
+            nameBadge.style.background = "#F1F5F9";
+            nameBadge.style.color = "#64748B";
+        }
+
+        const phys = t.physical_pressed || [];
+        const virt = t.virtual_pressed || [];
+
+        document.getElementById('visPhysicalKeys').innerText = phys.length ? phys.join(', ') : 'None';
+        document.getElementById('visVirtualKeys').innerText = virt.length ? virt.join(', ') : 'None';
+
+        document.getElementById('visLT').innerText = Math.round((t.lt || 0) * 100) + '%';
+        document.getElementById('visRT').innerText = Math.round((t.rt || 0) * 100) + '%';
+        document.getElementById('visLS').innerText = `(${t.lx || 0}, ${t.ly || 0})`;
+        document.getElementById('visRS').innerText = `(${t.rx || 0}, ${t.ry || 0})`;
+
+        // Show live translated action in game
+        if (phys.length > 0) {
+            const firstPhys = phys[0];
+            const targetVirt = currentProfile.button_mapping[firstPhys] || firstPhys;
+            const actionText = (currentProfile.button_actions && currentProfile.button_actions[targetVirt]) || targetVirt;
+            document.getElementById('visLiveAction').innerText = `[${firstPhys}] ➔ Emits [${targetVirt}] (${actionText})`;
+        } else if (t.last_macro) {
+            document.getElementById('visLiveAction').innerText = `⚡ Macro Fired: ${t.last_macro}`;
+        }
+
+        // Update Vector SVG Elements
+        const ALL_BTNS = ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "START", "BACK", "Up", "Down", "Left", "Right"];
+        ALL_BTNS.forEach(b => {
+            const el = document.getElementById('svg_' + b);
+            if (!el) return;
+            const isPressed = phys.includes(b);
+            if (b === 'A') el.setAttribute('fill', isPressed ? '#22C55E' : '#FFFFFF');
+            else if (b === 'B') el.setAttribute('fill', isPressed ? '#EF4444' : '#FFFFFF');
+            else if (b === 'X') el.setAttribute('fill', isPressed ? '#3B82F6' : '#FFFFFF');
+            else if (b === 'Y') el.setAttribute('fill', isPressed ? '#EAB308' : '#FFFFFF');
+            else if (b === 'LT' || b === 'RT') el.setAttribute('fill', (isPressed || (b==='LT' && t.lt>0.15) || (b==='RT' && t.rt>0.15)) ? '#38BDF8' : '#F1F5F9');
+            else if (b === 'LB' || b === 'RB') el.setAttribute('fill', isPressed ? '#0284C7' : '#E2E8F0');
+            else el.setAttribute('fill', isPressed ? '#0284C7' : '#E2E8F0');
+        });
+
+        // Update Thumbstick Nubs
+        const lsNub = document.getElementById('svg_LS_Nub');
+        if (lsNub) {
+            const lsX = 125 + (t.lx || 0) * 14;
+            const lsY = 95 + (t.ly || 0) * 14;
+            lsNub.setAttribute('cx', lsX);
+            lsNub.setAttribute('cy', lsY);
+            lsNub.setAttribute('fill', phys.includes('LS') ? '#0284C7' : '#FFFFFF');
+            const lsText = document.getElementById('svg_LS_Text');
+            if (lsText) {
+                lsText.setAttribute('x', lsX);
+                lsText.setAttribute('y', lsY + 4);
+            }
+        }
+
+        const rsNub = document.getElementById('svg_RS_Nub');
+        if (rsNub) {
+            const rsX = 240 + (t.rx || 0) * 14;
+            const rsY = 150 + (t.ry || 0) * 14;
+            rsNub.setAttribute('cx', rsX);
+            rsNub.setAttribute('cy', rsY);
+            rsNub.setAttribute('fill', phys.includes('RS') ? '#0284C7' : '#FFFFFF');
+            const rsText = document.getElementById('svg_RS_Text');
+            if (rsText) {
+                rsText.setAttribute('x', rsX);
+                rsText.setAttribute('y', rsY + 4);
+            }
+        }
     }
 
     async function toggleEngine() {
@@ -631,7 +809,7 @@ HTML_DASHBOARD = """
         await checkEngineStatus();
     }
 
-    setInterval(checkEngineStatus, 2000);
+    setInterval(checkEngineStatus, 100);
     loadData();
 </script>
 </body>
@@ -694,9 +872,11 @@ def get_engine_status():
     global engine_instance, engine_status
     with engine_lock:
         running = engine_instance is not None and engine_instance.running
+    from engine import CURRENT_TELEMETRY
     return jsonify({
         "running": running,
-        "status": engine_status
+        "status": engine_status,
+        "telemetry": CURRENT_TELEMETRY
     })
 
 @app.route("/api/engine/toggle", methods=["POST"])
