@@ -47,21 +47,21 @@ HTML_DASHBOARD = """
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #0F172A;
-            --bg-card: #1E293B;
-            --bg-card-hover: #334155;
-            --accent: #38BDF8;
-            --accent-glow: rgba(56, 189, 248, 0.25);
-            --text-primary: #F8FAFC;
-            --text-secondary: #94A3B8;
-            --border: #334155;
+            --bg-base: #F8FAFC;
+            --bg-card: #FFFFFF;
+            --bg-card-hover: #F1F5F9;
+            --accent: #0284C7;
+            --accent-glow: rgba(2, 132, 199, 0.2);
+            --text-primary: #0F172A;
+            --text-secondary: #64748B;
+            --border: #E2E8F0;
             --success: #10B981;
             --danger: #EF4444;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             background: var(--bg-base);
             color: var(--text-primary);
             min-height: 100vh;
@@ -70,7 +70,7 @@ HTML_DASHBOARD = """
         }
 
         header {
-            background: rgba(30, 41, 59, 0.8);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
             padding: 1rem 2rem;
@@ -82,14 +82,36 @@ HTML_DASHBOARD = """
             z-index: 100;
         }
 
+        /* ─── DYNAMIC RGB NEON STRIP ─── */
+        .rgb-strip {
+            height: 5px;
+            width: 100%;
+            background: linear-gradient(90deg, #0284c7, #38bdf8, #818cf8, #c084fc, #e879f9, #38bdf8);
+            background-size: 300% 300%;
+            animation: rgbFlow 6s ease infinite;
+        }
+
+        .rgb-strip.active {
+            background: linear-gradient(90deg, #ff0055, #ff5500, #ffdd00, #00ff66, #00bbff, #b700ff, #ff0055);
+            background-size: 400% 400%;
+            animation: rgbFlow 2.5s linear infinite;
+            box-shadow: 0 0 12px rgba(0, 187, 255, 0.4);
+        }
+
+        @keyframes rgbFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
         .brand {
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             font-weight: 800;
-            letter-spacing: 0.05em;
-            color: var(--accent);
+            letter-spacing: 0.02em;
+            color: var(--text-primary);
         }
 
         .engine-actions {
@@ -104,14 +126,15 @@ HTML_DASHBOARD = """
             gap: 0.5rem;
             font-size: 0.875rem;
             color: var(--text-secondary);
+            font-weight: 500;
         }
 
         .btn {
-            padding: 0.6rem 1.25rem;
+            padding: 0.6rem 1.35rem;
             border-radius: 8px;
             font-weight: 600;
             font-size: 0.875rem;
-            border: none;
+            border: 1px solid transparent;
             cursor: pointer;
             transition: all 0.2s;
             display: inline-flex;
@@ -119,14 +142,14 @@ HTML_DASHBOARD = """
             gap: 0.5rem;
         }
 
-        .btn-primary { background: #0284C7; color: white; }
+        .btn-primary { background: #0284C7; color: white; border: none; }
         .btn-primary:hover { background: #0369A1; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-success:hover { background: #059669; }
-        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: #0284C7; color: white; border: none; }
+        .btn-success:hover { background: #0369A1; }
+        .btn-danger { background: var(--danger); color: white; border: none; }
         .btn-danger:hover { background: #DC2626; }
-        .btn-secondary { background: var(--bg-card-hover); color: var(--text-primary); }
-        .btn-secondary:hover { background: #475569; }
+        .btn-secondary { background: #FFFFFF; color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--bg-card-hover); border-color: #CBD5E1; }
 
         .app-layout {
             display: grid;
@@ -147,9 +170,10 @@ HTML_DASHBOARD = """
             display: flex;
             flex-direction: column;
             gap: 1rem;
-            height: calc(100vh - 120px);
+            height: calc(100vh - 140px);
             position: sticky;
             top: 90px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
         .sidebar-title {
@@ -204,6 +228,7 @@ HTML_DASHBOARD = """
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
 
         .card-header {
@@ -216,7 +241,7 @@ HTML_DASHBOARD = """
         .card-title {
             font-size: 1.05rem;
             font-weight: 700;
-            color: var(--accent);
+            color: #0F172A;
         }
 
         .remap-grid {
@@ -226,10 +251,10 @@ HTML_DASHBOARD = """
         }
 
         .remap-slot {
-            background: #0F172A;
+            background: #F8FAFC;
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 0.6rem 0.8rem;
+            padding: 0.65rem 0.85rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -238,16 +263,16 @@ HTML_DASHBOARD = """
         .remap-slot span {
             font-weight: 700;
             font-size: 0.85rem;
-            color: var(--text-primary);
+            color: #334155;
         }
 
         .remap-slot select {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
             border-radius: 6px;
-            color: var(--accent);
-            font-weight: 600;
-            padding: 0.3rem 0.5rem;
+            color: #0284C7;
+            font-weight: 700;
+            padding: 0.35rem 0.55rem;
             outline: none;
         }
 
@@ -265,7 +290,7 @@ HTML_DASHBOARD = """
         th {
             text-align: left;
             padding: 0.75rem 1rem;
-            background: #0F172A;
+            background: #F1F5F9;
             color: var(--text-secondary);
             font-weight: 600;
             border-bottom: 1px solid var(--border);
@@ -277,16 +302,16 @@ HTML_DASHBOARD = """
         }
 
         .badge {
-            background: #0369A1;
-            color: white;
-            padding: 0.2rem 0.5rem;
+            background: #E0F2FE;
+            color: #0284C7;
+            padding: 0.25rem 0.6rem;
             border-radius: 4px;
             font-size: 0.75rem;
-            font-weight: 600;
+            font-weight: 700;
         }
 
         .status-footer {
-            background: #020617;
+            background: #FFFFFF;
             border-top: 1px solid var(--border);
             padding: 0.75rem 2rem;
             font-size: 0.825rem;
@@ -323,6 +348,7 @@ HTML_DASHBOARD = """
         </button>
     </div>
 </header>
+<div class="rgb-strip" id="rgbStrip"></div>
 
 <div class="app-layout">
     <!-- LEFT: Profile Selector -->
@@ -544,14 +570,17 @@ HTML_DASHBOARD = """
         document.getElementById('engineStatusText').innerText = "Status: " + data.status;
         const dot = document.getElementById('statusDot');
         const btn = document.getElementById('btnToggleEngine');
+        const rgb = document.getElementById('rgbStrip');
         if (isRunning) {
             dot.className = 'status-dot active';
             btn.className = 'btn btn-danger';
             btn.innerText = '■ STOP REMAPPER';
+            if (rgb) rgb.className = 'rgb-strip active';
         } else {
             dot.className = 'status-dot';
             btn.className = 'btn btn-primary';
             btn.innerText = '▶ RUN REMAPPER';
+            if (rgb) rgb.className = 'rgb-strip';
         }
     }
 

@@ -1,22 +1,20 @@
 """
-ui.py – Modern Production GUI with Game Profile Selection & Macro Builder
-==========================================================================
+ui.py – Modular White Clean Theme with Dynamic RGB Status Strip
+================================================================
 Features:
-  - Game Profile sidebar (Left): Quick selection of game profiles
-  - Profile Management: New, Save, and Delete Game Profiles
-  - Visual 16-Button Remap Matrix (Center): Physical -> Target Gamepad Mapping
-  - Macro Engine Builder (Right/Bottom):
-      * Double-Tap Macros (e.g. Double-tap B -> Custom Action)
-      * Button Combination Combos (e.g. LB + X -> RT)
-  - HidHide Integration toggle to prevent double input on GeForce NOW
-  - Modern Dark Gamer Theme with status telemetry
+  - Clean Minimal Modular White Theme (Apple/Braun inspired aesthetic)
+  - Dynamic RGB Neon Glow Lightbar Strip:
+      * Idle/Stopped: Gentle breathing cyan/silver wave
+      * Active/Remapping: Energetic cycling chromatic RGB wave
+      * Error/Warning: Alert amber/coral pulse
+  - Real-time profile switching, button remap matrix, and macro engine
 """
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtWidgets import (
     QApplication,
@@ -46,129 +44,148 @@ from profiles import ProfileManager, GameProfile, CONTROLLER_BUTTONS
 from engine import RemapperEngine, EngineConfig, MappingSignals
 import hidhide
 
-# Modern Theme Styling
-THEME_QSS = """
+# ─── MODULAR WHITE THEME STYLING ────────────────────────────────────
+MODULAR_WHITE_QSS = """
 QMainWindow {
-    background-color: #12151B;
-    color: #E2E8F0;
-    font-family: 'Segoe UI', system-ui, sans-serif;
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 QWidget {
-    background-color: #12151B;
-    color: #E2E8F0;
+    background-color: #F8FAFC;
+    color: #0F172A;
 }
 QGroupBox {
-    border: 1px solid #2D3748;
-    border-radius: 8px;
-    margin-top: 14px;
-    padding-top: 10px;
-    font-weight: bold;
-    color: #63B3ED;
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    margin-top: 18px;
+    padding: 16px 14px 12px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    color: #0284C7;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 0 6px;
-    left: 10px;
+    padding: 2px 10px;
+    left: 14px;
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    color: #0F172A;
 }
 QListWidget {
-    background-color: #1A202C;
-    border: 1px solid #2D3748;
-    border-radius: 6px;
-    padding: 4px;
-    color: #EDF2F7;
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 6px;
+    color: #334155;
     font-size: 13px;
 }
 QListWidget::item {
-    padding: 10px 12px;
-    border-radius: 4px;
-    margin-bottom: 2px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 3px;
 }
 QListWidget::item:selected {
-    background-color: #3182CE;
+    background-color: #0284C7;
     color: #FFFFFF;
-    font-weight: bold;
+    font-weight: 700;
 }
 QListWidget::item:hover:!selected {
-    background-color: #2D3748;
+    background-color: #F1F5F9;
+    color: #0F172A;
 }
 QComboBox {
-    background-color: #2D3748;
-    border: 1px solid #4A5568;
-    border-radius: 4px;
+    background-color: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
     padding: 4px 8px;
-    color: #FFFFFF;
-    font-weight: 500;
-}
-QComboBox:hover {
-    border: 1px solid #63B3ED;
-}
-QComboBox QAbstractItemView {
-    background-color: #2D3748;
-    selection-background-color: #3182CE;
-    color: #FFFFFF;
-}
-QPushButton {
-    background-color: #2D3748;
-    border: 1px solid #4A5568;
-    border-radius: 5px;
-    padding: 6px 14px;
-    color: #E2E8F0;
+    color: #0F172A;
     font-weight: 600;
 }
+QComboBox:hover {
+    border: 1px solid #0284C7;
+    background-color: #F8FAFC;
+}
+QComboBox QAbstractItemView {
+    background-color: #FFFFFF;
+    selection-background-color: #0284C7;
+    selection-color: #FFFFFF;
+    color: #0F172A;
+    border: 1px solid #E2E8F0;
+}
+QPushButton {
+    background-color: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 7px;
+    padding: 7px 16px;
+    color: #334155;
+    font-weight: 600;
+    font-size: 13px;
+}
 QPushButton:hover {
-    background-color: #3B4758;
-    border-color: #63B3ED;
+    background-color: #F8FAFC;
+    border-color: #94A3B8;
+    color: #0F172A;
 }
 QPushButton#btn_run {
-    background-color: #2B6CB0;
+    background-color: #0284C7;
     color: #FFFFFF;
     font-size: 13px;
-    padding: 8px 24px;
+    font-weight: 700;
+    padding: 8px 26px;
     border: none;
+    border-radius: 7px;
 }
 QPushButton#btn_run:hover {
-    background-color: #3182CE;
+    background-color: #0369A1;
 }
 QPushButton#btn_stop {
-    background-color: #C53030;
+    background-color: #EF4444;
     color: #FFFFFF;
     font-size: 13px;
-    padding: 8px 24px;
+    font-weight: 700;
+    padding: 8px 26px;
     border: none;
+    border-radius: 7px;
 }
 QPushButton#btn_stop:hover {
-    background-color: #E53E3E;
+    background-color: #DC2626;
 }
 QTableWidget {
-    background-color: #1A202C;
-    border: 1px solid #2D3748;
-    border-radius: 6px;
-    gridline-color: #2D3748;
-    color: #E2E8F0;
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    gridline-color: #F1F5F9;
+    color: #1E293B;
 }
 QHeaderView::section {
-    background-color: #2D3748;
-    color: #A0AEC0;
-    padding: 4px;
-    font-weight: bold;
+    background-color: #F1F5F9;
+    color: #475569;
+    padding: 8px 6px;
+    font-weight: 700;
+    font-size: 12px;
     border: none;
+    border-bottom: 1px solid #E2E8F0;
 }
 QCheckBox {
     spacing: 8px;
     font-size: 12px;
-    color: #CBD5E0;
+    font-weight: 500;
+    color: #475569;
 }
 QCheckBox::indicator {
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    border: 1px solid #4A5568;
-    background-color: #2D3748;
+    width: 17px;
+    height: 17px;
+    border-radius: 4px;
+    border: 1px solid #CBD5E1;
+    background-color: #FFFFFF;
 }
 QCheckBox::indicator:checked {
-    background-color: #3182CE;
-    border-color: #63B3ED;
+    background-color: #0284C7;
+    border-color: #0284C7;
 }
 """
 
@@ -181,38 +198,51 @@ class WitcherRemapperUI(QMainWindow):
         self.signals.status_updated.connect(self._on_status)
         self._engine: RemapperEngine | None = None
         self._dropdowns: dict[str, QComboBox] = {}
+
+        # RGB Strip Animation State
+        self.rgb_hue = 0.0
+        self.rgb_timer = QTimer(self)
+        self.rgb_timer.timeout.connect(self._animate_rgb_strip)
+        self.rgb_timer.start(35) # ~30 FPS light wave
+
         self._init_ui()
 
     def _init_ui(self):
         self.setWindowTitle("GeForce NOW Controller Remapper PC")
-        self.setMinimumSize(1150, 720)
-        self.setStyleSheet(THEME_QSS)
+        self.setMinimumSize(1180, 740)
+        self.setStyleSheet(MODULAR_WHITE_QSS)
 
         central_widget = QWidget()
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(14, 14, 14, 12)
+        main_layout.setContentsMargins(16, 14, 16, 14)
         main_layout.setSpacing(10)
 
         # ─── Top Bar: App Status & Controls ──────────────────────────
         top_bar = QHBoxLayout()
 
         app_title = QLabel("🎮 GEFORCE NOW CONTROLLER REMAPPER PC")
-        app_title.setStyleSheet("font-size: 16px; font-weight: 800; color: #63B3ED; letter-spacing: 1px;")
+        app_title.setStyleSheet("font-size: 15px; font-weight: 800; color: #0F172A; letter-spacing: 0.5px;")
 
         self.chk_hidhide = QCheckBox("Prevent Double Input via HidHide")
         self.chk_hidhide.setChecked(True)
-        self.chk_hidhide.setToolTip("Hides physical gamepad from GeForce NOW & games, letting only virtual Xbox 360 register.")
+        self.chk_hidhide.setToolTip("Hides physical gamepad from GeForce NOW, letting only virtual Xbox 360 register.")
 
         self.btn_run = QPushButton("▶ RUN REMAPPER")
         self.btn_run.setObjectName("btn_run")
         self.btn_run.clicked.connect(self._toggle_engine)
 
         top_bar.addWidget(app_title)
-        top_bar.addSpacing(20)
+        top_bar.addSpacing(24)
         top_bar.addWidget(self.chk_hidhide)
         top_bar.addStretch()
         top_bar.addWidget(self.btn_run)
         main_layout.addLayout(top_bar)
+
+        # ─── DYNAMIC RGB NEON STATUS STRIP ───────────────────────────
+        self.rgb_strip = QFrame()
+        self.rgb_strip.setFixedHeight(5)
+        self.rgb_strip.setStyleSheet("border-radius: 2px; background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #94A3B8, stop:1 #CBD5E1);")
+        main_layout.addWidget(self.rgb_strip)
 
         # ─── Main Content Splitter (Left: Games, Right: Mapping & Macros)
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -222,7 +252,7 @@ class WitcherRemapperUI(QMainWindow):
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 8, 0)
 
-        games_group = QGroupBox("SELECT GAME PROFILE")
+        games_group = QGroupBox("GAME PROFILES")
         games_layout = QVBoxLayout(games_group)
 
         self.profile_list = QListWidget()
@@ -231,12 +261,12 @@ class WitcherRemapperUI(QMainWindow):
 
         # Profile Action Buttons
         p_btns_layout = QHBoxLayout()
-        btn_new_prof = QPushButton("+ New Profile")
+        btn_new_prof = QPushButton("+ New")
         btn_new_prof.clicked.connect(self._create_new_profile)
         btn_del_prof = QPushButton("Delete")
         btn_del_prof.clicked.connect(self._delete_profile)
         btn_save_prof = QPushButton("💾 Save Profile")
-        btn_save_prof.setStyleSheet("background-color: #2C5282; color: #FFFFFF;")
+        btn_save_prof.setStyleSheet("background-color: #0284C7; color: #FFFFFF; font-weight: 700;")
         btn_save_prof.clicked.connect(self._save_current_profile)
 
         p_btns_layout.addWidget(btn_new_prof)
@@ -258,13 +288,12 @@ class WitcherRemapperUI(QMainWindow):
         grid_layout.setHorizontalSpacing(16)
         grid_layout.setVerticalSpacing(10)
 
-        # Build 16 button remapper slots in a 4x4 grid
         row, col = 0, 0
         for btn in CONTROLLER_BUTTONS:
             cell = QHBoxLayout()
             lbl = QLabel(f"<b>[{btn}]</b>  ➔")
             lbl.setFixedWidth(70)
-            lbl.setStyleSheet("color: #E2E8F0; font-size: 12px;")
+            lbl.setStyleSheet("color: #334155; font-size: 12px;")
 
             combo = QComboBox()
             combo.addItems(BUTTON_OPTIONS)
@@ -284,7 +313,7 @@ class WitcherRemapperUI(QMainWindow):
         right_layout.addWidget(remap_group)
 
         # 2. Advanced Macros & Combos
-        macro_group = QGroupBox("GAME MACROS & COMBOS (Double-Tap & Combination Buttons)")
+        macro_group = QGroupBox("GAME MACROS & COMBOS (Double-Tap & Multi-Button Actions)")
         macro_layout = QVBoxLayout(macro_group)
 
         self.macro_table = QTableWidget()
@@ -319,15 +348,43 @@ class WitcherRemapperUI(QMainWindow):
         # ─── Status Footer Bar ───────────────────────────────────────
         self.status_bar = QLabel("Status: Ready. Select a game profile and click 'RUN REMAPPER'.")
         self.status_bar.setStyleSheet(
-            "background-color: #1A202C; border: 1px solid #2D3748; border-radius: 4px; "
-            "color: #A0AEC0; padding: 6px 12px; font-size: 12px;"
+            "background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; "
+            "color: #64748B; padding: 8px 14px; font-size: 12px; font-weight: 500;"
         )
         main_layout.addWidget(self.status_bar)
 
         self.setCentralWidget(central_widget)
-
-        # Populate profile list
         self._refresh_profile_list()
+
+    # ─── DYNAMIC RGB LIGHTBAR ANIMATION ─────────────────────────────
+    def _animate_rgb_strip(self):
+        is_running = self._engine is not None and self._engine.running
+
+        if is_running:
+            # Active Remapping: Chromatic vibrant neon flow
+            self.rgb_hue = (self.rgb_hue + 0.015) % 1.0
+            c1 = QColor.fromHsvF(self.rgb_hue, 0.85, 0.95).name()
+            c2 = QColor.fromHsvF((self.rgb_hue + 0.33) % 1.0, 0.85, 0.95).name()
+            c3 = QColor.fromHsvF((self.rgb_hue + 0.66) % 1.0, 0.85, 0.95).name()
+            style = (
+                f"border-radius: 2px; "
+                f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+                f"stop:0 {c1}, stop:0.5 {c2}, stop:1 {c3});"
+            )
+        else:
+            # Idle/Stopped: Soft modern ice-blue wave
+            self.rgb_hue = (self.rgb_hue + 0.005) % 1.0
+            val = 0.6 + 0.3 * (0.5 + 0.5 * (self.rgb_hue * 6.28))
+            c1 = "#0284C7"
+            c2 = "#38BDF8"
+            c3 = "#BAE6FD"
+            style = (
+                f"border-radius: 2px; "
+                f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+                f"stop:0 {c1}, stop:0.5 {c2}, stop:1 {c3});"
+            )
+
+        self.rgb_strip.setStyleSheet(style)
 
     # ─── Profile Management ─────────────────────────────────────────
     def _refresh_profile_list(self):
@@ -347,12 +404,10 @@ class WitcherRemapperUI(QMainWindow):
         self._load_profile_into_ui(self.current_profile)
 
     def _load_profile_into_ui(self, profile: GameProfile):
-        # Update dropdowns
         for btn, combo in self._dropdowns.items():
             target = profile.button_mapping.get(btn, btn)
             combo.setCurrentText(target)
 
-        # Update macro table
         self.macro_table.setRowCount(0)
         for m in profile.macros:
             row = self.macro_table.rowCount()
@@ -364,16 +419,12 @@ class WitcherRemapperUI(QMainWindow):
 
         self.status_bar.setText(f"Active Profile: '{profile.name}' | {profile.description}")
 
-        # If engine is actively running, hot-update it with this game profile
         if self._engine and self._engine.running:
             self._engine.update_config(self._get_engine_config())
 
     def _save_current_profile(self):
-        # Update mapping
         new_map = {btn: combo.currentText() for btn, combo in self._dropdowns.items()}
         self.current_profile.button_mapping = new_map
-
-        # Save to disk
         self.profile_mgr.save_profile(self.current_profile)
         self.status_bar.setText(f"✓ Configuration for '{self.current_profile.name}' saved permanently.")
 
