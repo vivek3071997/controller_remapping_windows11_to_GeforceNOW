@@ -19,6 +19,53 @@ CONTROLLER_BUTTONS = [
     "Up", "Down", "Left", "Right"
 ]
 
+def sanitize_mapping(mapping: Dict[str, str]) -> Dict[str, str]:
+    """Ensures mapping is a clean 1:1 bijection across all CONTROLLER_BUTTONS with zero duplicates."""
+    used_virt = set()
+    sanitized: Dict[str, str] = {}
+
+    for b in CONTROLLER_BUTTONS:
+        target = mapping.get(b, b)
+        if target in CONTROLLER_BUTTONS and target not in used_virt:
+            sanitized[b] = target
+            used_virt.add(target)
+        else:
+            sanitized[b] = None  # to be filled with available unused button
+
+    available_virt = [b for b in CONTROLLER_BUTTONS if b not in used_virt]
+    for b in CONTROLLER_BUTTONS:
+        if sanitized[b] is None:
+            sanitized[b] = available_virt.pop(0) if available_virt else b
+
+    return sanitized
+
+def get_mapped_physical_key(mapping: Dict[str, str], default_key: str) -> str:
+    """Finds which physical controller button is currently mapped to default_key."""
+    for p, v in mapping.items():
+        if v == default_key:
+            return p
+    return default_key
+
+def swap_button_mapping(mapping: Dict[str, str], target_default_key: str, new_physical_key: str) -> Dict[str, str]:
+    """
+    Swaps the mapped controller key for target_default_key with new_physical_key.
+    Guarantees strict 1:1 correspondence with zero duplicates.
+    """
+    clean_map = sanitize_mapping(mapping)
+    old_physical_key = get_mapped_physical_key(clean_map, target_default_key)
+
+    if old_physical_key == new_physical_key:
+        return clean_map
+
+    # What default action was new_physical_key previously triggering?
+    other_default_key = clean_map.get(new_physical_key, new_physical_key)
+
+    # Perform bijective swap
+    clean_map[new_physical_key] = target_default_key
+    clean_map[old_physical_key] = other_default_key
+
+    return clean_map
+
 @dataclass
 class GameProfile:
     name: str

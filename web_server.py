@@ -15,7 +15,7 @@ from pathlib import Path
 from flask import Flask, jsonify, request, render_template_string
 
 from constants import BUTTON_OPTIONS
-from profiles import ProfileManager, GameProfile, CONTROLLER_BUTTONS
+from profiles import ProfileManager, GameProfile, CONTROLLER_BUTTONS, sanitize_mapping
 from engine import RemapperEngine, EngineConfig, MappingSignals
 import hidhide
 
@@ -258,53 +258,87 @@ HTML_DASHBOARD = """
 
         .remap-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.85rem;
         }
 
         .remap-slot {
-            background: #F8FAFC;
+            background: #FFFFFF;
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 0.65rem 0.85rem;
+            padding: 0.75rem 0.95rem;
             display: flex;
             flex-direction: column;
-            gap: 0.4rem;
+            gap: 0.45rem;
+            transition: all 0.2s ease;
         }
 
-        .remap-slot-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        .remap-slot.swapped {
+            background: #F0F9FF;
+            border: 1.5px solid #0284C7;
+            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.08);
         }
 
-        .remap-slot span.btn-name {
+        .remap-action-title {
+            font-size: 0.88rem;
             font-weight: 700;
-            font-size: 0.85rem;
             color: #0F172A;
-        }
-
-        .remap-slot select {
-            background: #FFFFFF;
-            border: 1px solid #CBD5E1;
-            border-radius: 6px;
-            color: #0284C7;
-            font-weight: 700;
-            padding: 0.35rem 0.55rem;
-            outline: none;
-        }
-
-        .action-desc-badge {
-            background: #F1F5F9;
-            color: #0284C7;
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            border: 1px solid #E2E8F0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .remap-slot-body {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .badge-default {
+            background: #F1F5F9;
+            color: #334155;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #E2E8F0;
+        }
+
+        .remap-arrow {
+            color: #94A3B8;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .remap-select {
+            background: #FFFFFF;
+            border: 1.5px solid #CBD5E1;
+            border-radius: 6px;
+            color: #0284C7;
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 0.25rem 0.55rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .remap-select:focus {
+            border-color: #0284C7;
+        }
+
+        .badge-status {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #94A3B8;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        .badge-status.active {
+            background: #E0F2FE;
+            color: #0284C7;
+            font-weight: 700;
         }
 
         .table-responsive {
@@ -503,8 +537,16 @@ HTML_DASHBOARD = """
         <!-- 16 Button Remap Grid -->
         <div class="card">
             <div class="card-header">
-                <span class="card-title">BUTTON REMAP MATRIX (Physical ➔ Virtual Output)</span>
-                <span id="activeProfileDesc" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+                <div>
+                    <span class="card-title">BUTTON REMAP CONFIGURATION</span>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px;">
+                        Actions & default keys are fixed. Changing any mapped button swaps automatically — zero duplicates.
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    <span id="activeProfileDesc" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+                    <button class="btn btn-secondary" onclick="resetMappingsToDefault()" style="padding: 0.35rem 0.85rem; font-size: 0.8rem;">↺ Reset to Default</button>
+                </div>
             </div>
             <div class="remap-grid" id="remapGrid"></div>
         </div>
@@ -580,28 +622,90 @@ HTML_DASHBOARD = """
         document.getElementById('activeProfileDesc').innerText = currentProfile.description || '';
     }
 
+    function sanitizeMapping(mapping) {
+        mapping = mapping || {};
+        const used = new Set();
+        const clean = {};
+        CONTROLLER_BUTTONS.forEach(b => {
+            const target = mapping[b] || b;
+            if (CONTROLLER_BUTTONS.includes(target) && !used.has(target)) {
+                clean[b] = target;
+                used.add(target);
+            } else {
+                clean[b] = null;
+            }
+        });
+        const unused = CONTROLLER_BUTTONS.filter(b => !used.has(b));
+        CONTROLLER_BUTTONS.forEach(b => {
+            if (clean[b] === null) {
+                clean[b] = unused.shift() || b;
+            }
+        });
+        return clean;
+    }
+
+    function getMappedPhysicalKey(mapping, defaultKey) {
+        for (const [p, v] of Object.entries(mapping)) {
+            if (v === defaultKey) return p;
+        }
+        return defaultKey;
+    }
+
+    function swapButtonMapping(mapping, targetDefaultKey, newPhysKey) {
+        mapping = sanitizeMapping(mapping);
+        const oldPhysKey = getMappedPhysicalKey(mapping, targetDefaultKey);
+        if (oldPhysKey === newPhysKey) return mapping;
+
+        const otherDefaultKey = mapping[newPhysKey] || newPhysKey;
+        mapping[newPhysKey] = targetDefaultKey;
+        mapping[oldPhysKey] = otherDefaultKey;
+        return mapping;
+    }
+
     function renderMapping() {
         const grid = document.getElementById('remapGrid');
         grid.innerHTML = '';
+        currentProfile.button_mapping = sanitizeMapping(currentProfile.button_mapping || {});
         const actions = currentProfile.button_actions || {};
-        CONTROLLER_BUTTONS.forEach(btn => {
-            const target = currentProfile.button_mapping[btn] || btn;
-            const actionText = actions[target] || target;
+
+        CONTROLLER_BUTTONS.forEach(defBtn => {
+            // In-Game Action is FIXED to defBtn
+            const actionText = actions[defBtn] || defBtn;
+            // Which physical button triggers defBtn?
+            const mappedPhys = getMappedPhysicalKey(currentProfile.button_mapping, defBtn);
+            const isSwapped = mappedPhys !== defBtn;
+
             const slot = document.createElement('div');
-            slot.className = 'remap-slot';
+            slot.className = 'remap-slot' + (isSwapped ? ' swapped' : '');
+            slot.id = 'remapSlot_' + defBtn;
             slot.innerHTML = `
-                <div class="remap-slot-header">
-                    <span class="btn-name">[${btn}] ➔</span>
-                    <select onchange="updateButtonMap('${btn}', this.value)">
-                        ${BUTTON_OPTIONS.map(opt => `<option value="${opt}" ${opt === target ? 'selected' : ''}>${opt}</option>`).join('')}
+                <div class="remap-action-title" title="${actionText}">${actionText}</div>
+                <div class="remap-slot-body">
+                    <span class="badge-default">Default: <b>[${defBtn}]</b></span>
+                    <span class="remap-arrow">➔</span>
+                    <span style="font-size:0.75rem; font-weight:700; color:var(--text-secondary);">MAPPED:</span>
+                    <select class="remap-select" onchange="handleButtonSwap('${defBtn}', this.value)">
+                        ${CONTROLLER_BUTTONS.map(opt => `<option value="${opt}" ${opt === mappedPhys ? 'selected' : ''}>[${opt}]</option>`).join('')}
                     </select>
-                </div>
-                <div class="action-desc-badge" id="actionDesc_${btn}" title="${actionText}">
-                    Action: ${actionText}
+                    <span class="badge-status ${isSwapped ? 'active' : ''}">${isSwapped ? `⇄ Swapped [${mappedPhys}]` : 'Default'}</span>
                 </div>
             `;
             grid.appendChild(slot);
         });
+    }
+
+    function handleButtonSwap(targetDefaultKey, newPhysKey) {
+        currentProfile.button_mapping = swapButtonMapping(currentProfile.button_mapping, targetDefaultKey, newPhysKey);
+        renderMapping();
+        saveCurrentProfile();
+    }
+
+    function resetMappingsToDefault() {
+        const fresh = {};
+        CONTROLLER_BUTTONS.forEach(b => fresh[b] = b);
+        currentProfile.button_mapping = fresh;
+        renderMapping();
+        saveCurrentProfile();
     }
 
     function renderMacros() {
@@ -618,17 +722,6 @@ HTML_DASHBOARD = """
             `;
             tbody.appendChild(tr);
         });
-    }
-
-    function updateButtonMap(btn, val) {
-        currentProfile.button_mapping[btn] = val;
-        const actions = currentProfile.button_actions || {};
-        const actionText = actions[val] || val;
-        const badge = document.getElementById(`actionDesc_${btn}`);
-        if (badge) {
-            badge.innerText = `Action: ${actionText}`;
-            badge.title = actionText;
-        }
     }
 
     async function saveCurrentProfile() {
@@ -904,7 +997,7 @@ def save_profile():
     profile = GameProfile(
         name=data["name"],
         description=data.get("description", ""),
-        button_mapping=data.get("button_mapping", {}),
+        button_mapping=sanitize_mapping(data.get("button_mapping", {})),
         button_actions=data.get("button_actions", {}),
         macros=data.get("macros", [])
     )

@@ -40,7 +40,14 @@ from PyQt6.QtWidgets import (
 )
 
 from constants import BUTTON_OPTIONS
-from profiles import ProfileManager, GameProfile, CONTROLLER_BUTTONS
+from profiles import (
+    ProfileManager,
+    GameProfile,
+    CONTROLLER_BUTTONS,
+    swap_button_mapping,
+    sanitize_mapping,
+    get_mapped_physical_key
+)
 from engine import RemapperEngine, EngineConfig, MappingSignals
 from visualizer_widget import ControllerVisualizerWidget
 import hidhide
@@ -201,6 +208,10 @@ class WitcherRemapperUI(QMainWindow):
         self._engine: RemapperEngine | None = None
         self._dropdowns: dict[str, QComboBox] = {}
         self._action_labels: dict[str, QLabel] = {}
+        self._remap_cards: dict[str, QFrame] = {}
+        self._default_badges: dict[str, QLabel] = {}
+        self._status_badges: dict[str, QLabel] = {}
+        self._is_updating_ui = False
 
         # RGB Strip Animation State
         self.rgb_hue = 0.0
@@ -295,52 +306,128 @@ class WitcherRemapperUI(QMainWindow):
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(8, 0, 0, 0)
 
-        # 1. Controller Button Remap Grid
-        remap_group = QGroupBox("BUTTON REMAP CONFIGURATION (Physical Key ➔ Target Output)")
-        grid_layout = QGridLayout(remap_group)
-        grid_layout.setHorizontalSpacing(16)
-        grid_layout.setVerticalSpacing(10)
+        # 1. Controller Button Remap Configuration (Zero-Duplicate Swap System)
+        remap_group = QGroupBox("BUTTON REMAPPING (Fixed Actions & Default Keys • Auto-Swap System)")
+        remap_main_layout = QVBoxLayout(remap_group)
+        remap_main_layout.setContentsMargins(10, 12, 10, 10)
+        remap_main_layout.setSpacing(8)
 
-        row, col = 0, 0
-        for btn in CONTROLLER_BUTTONS:
-            cell = QVBoxLayout()
-            cell.setSpacing(3)
+        # Header bar inside group box: explanation + reset button
+        top_bar = QHBoxLayout()
+        hint_lbl = QLabel("Actions & default keys are fixed. Changing any mapped button swaps automatically with no duplicates.")
+        hint_lbl.setStyleSheet("color: #64748B; font-size: 11px; font-weight: 500;")
+        top_bar.addWidget(hint_lbl)
+        top_bar.addStretch()
 
-            # Top row: Physical label + combo selector
-            selector_row = QHBoxLayout()
-            lbl = QLabel(f"<b>[{btn}]</b>  ➔")
-            lbl.setFixedWidth(65)
-            lbl.setStyleSheet("color: #0F172A; font-size: 12px;")
+        reset_btn = QPushButton("↺ Reset All to Default")
+        reset_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FFFFFF;
+                color: #475569;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #F1F5F9;
+                color: #0F172A;
+                border-color: #94A3B8;
+            }
+        """)
+        reset_btn.clicked.connect(self._reset_mappings_to_default)
+        top_bar.addWidget(reset_btn)
+        remap_main_layout.addLayout(top_bar)
+
+        # 2-column Grid of 16 Cards
+        grid_layout = QGridLayout()
+        grid_layout.setHorizontalSpacing(12)
+        grid_layout.setVerticalSpacing(7)
+
+        for idx, def_btn in enumerate(CONTROLLER_BUTTONS):
+            row = idx // 2
+            col = idx % 2
+
+            card = QFrame()
+            card.setObjectName(f"card_{def_btn}")
+            card.setStyleSheet("""
+                QFrame {
+                    background-color: #FFFFFF;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 8px;
+                }
+            """)
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(10, 7, 10, 7)
+            card_layout.setSpacing(5)
+
+            # Top: In-Game Action (Fixed)
+            act_lbl = QLabel(f"{def_btn}")
+            act_lbl.setStyleSheet("color: #0F172A; font-weight: 700; font-size: 11px;")
+            self._action_labels[def_btn] = act_lbl
+            card_layout.addWidget(act_lbl)
+
+            # Bottom: Default Key (Fixed) -> Mapped Key (Combo) + Status
+            control_row = QHBoxLayout()
+            control_row.setSpacing(6)
+
+            def_badge = QLabel(f"Default: <b>[{def_btn}]</b>")
+            def_badge.setStyleSheet("""
+                background-color: #F1F5F9;
+                color: #334155;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 1px 5px;
+                border-radius: 4px;
+                border: 1px solid #E2E8F0;
+            """)
+            self._default_badges[def_btn] = def_badge
+            control_row.addWidget(def_badge)
+
+            arr_lbl = QLabel("➔")
+            arr_lbl.setStyleSheet("color: #94A3B8; font-weight: bold; font-size: 11px;")
+            control_row.addWidget(arr_lbl)
+
+            map_lbl = QLabel("Mapped:")
+            map_lbl.setStyleSheet("color: #64748B; font-size: 11px; font-weight: 600;")
+            control_row.addWidget(map_lbl)
 
             combo = QComboBox()
-            combo.addItems(BUTTON_OPTIONS)
-            combo.setCurrentText(btn)
+            combo.addItems(CONTROLLER_BUTTONS)
+            combo.setCurrentText(def_btn)
             combo.setFixedWidth(75)
-            combo.currentTextChanged.connect(lambda _, b=btn: self._update_single_action_label(b))
-            self._dropdowns[btn] = combo
+            combo.setFixedHeight(24)
+            combo.setStyleSheet("""
+                QComboBox {
+                    background-color: #FFFFFF;
+                    border: 1.5px solid #CBD5E1;
+                    border-radius: 5px;
+                    padding: 1px 5px;
+                    font-weight: 700;
+                    font-size: 11px;
+                    color: #0F172A;
+                }
+                QComboBox:hover {
+                    border-color: #0284C7;
+                }
+            """)
+            combo.currentTextChanged.connect(lambda val, db=def_btn: self._on_button_swapped(db, val))
+            self._dropdowns[def_btn] = combo
+            control_row.addWidget(combo)
 
-            selector_row.addWidget(lbl)
-            selector_row.addWidget(combo)
-            selector_row.addStretch()
-            cell.addLayout(selector_row)
+            status_badge = QLabel("Default")
+            status_badge.setStyleSheet("color: #94A3B8; font-size: 10px; font-weight: 600;")
+            self._status_badges[def_btn] = status_badge
+            control_row.addWidget(status_badge)
 
-            # Action description badge
-            act_lbl = QLabel("")
-            act_lbl.setStyleSheet(
-                "background-color: #F1F5F9; color: #0284C7; font-size: 11px; "
-                "font-weight: 600; padding: 2px 6px; border-radius: 4px; border: 1px solid #E2E8F0;"
-            )
-            act_lbl.setWordWrap(True)
-            self._action_labels[btn] = act_lbl
-            cell.addWidget(act_lbl)
+            control_row.addStretch()
+            card_layout.addLayout(control_row)
 
-            grid_layout.addLayout(cell, row, col)
+            grid_layout.addWidget(card, row, col)
+            self._remap_cards[def_btn] = card
 
-            col += 1
-            if col > 3:
-                col = 0
-                row += 1
-
+        remap_main_layout.addLayout(grid_layout)
         right_layout.addWidget(remap_group)
 
         # 2. Advanced Macros & Combos
@@ -434,22 +521,88 @@ class WitcherRemapperUI(QMainWindow):
         self.current_profile = self.profile_mgr.get_profile(p_name)
         self._load_profile_into_ui(self.current_profile)
 
-    def _update_single_action_label(self, btn: str):
-        if btn not in self._dropdowns or btn not in self._action_labels:
+    def _on_button_swapped(self, target_default_key: str, new_phys_btn: str):
+        if self._is_updating_ui:
             return
-        target = self._dropdowns[btn].currentText()
-        action_desc = self.current_profile.button_actions.get(target, target)
-        self._action_labels[btn].setText(f"Action: {action_desc}")
+        if not new_phys_btn or new_phys_btn not in CONTROLLER_BUTTONS:
+            return
+
+        # Perform the swap on current_profile.button_mapping
+        old_map = dict(self.current_profile.button_mapping)
+        new_map = swap_button_mapping(old_map, target_default_key, new_phys_btn)
+        self.current_profile.button_mapping = new_map
+
+        # Re-sync all dropdowns and status badges to match the clean swapped mapping
+        self._sync_remap_ui()
+
+        # Update engine live if running
+        if self._engine and self._engine.running:
+            self._engine.update_config(self._get_engine_config())
+
+        self.status_bar.setText(f"Swapped: [{new_phys_btn}] ⇄ [{target_default_key}] with zero duplicates.")
+
+    def _sync_remap_ui(self):
+        self._is_updating_ui = True
+        mapping = sanitize_mapping(self.current_profile.button_mapping)
+        self.current_profile.button_mapping = mapping
+        actions = self.current_profile.button_actions
+
+        for def_btn in CONTROLLER_BUTTONS:
+            # Action description is FIXED for def_btn
+            action_desc = actions.get(def_btn, def_btn)
+            if def_btn in self._action_labels:
+                self._action_labels[def_btn].setText(f"{action_desc}")
+
+            # Which physical button is mapped to def_btn?
+            mapped_phys = get_mapped_physical_key(mapping, def_btn)
+
+            combo = self._dropdowns.get(def_btn)
+            if combo:
+                combo.blockSignals(True)
+                combo.setCurrentText(mapped_phys)
+                combo.blockSignals(False)
+
+            card = self._remap_cards.get(def_btn)
+            status_badge = self._status_badges.get(def_btn)
+
+            if mapped_phys != def_btn:
+                if status_badge:
+                    status_badge.setText(f"⇄ Swapped [{mapped_phys}]")
+                    status_badge.setStyleSheet("color: #0284C7; font-size: 10px; font-weight: 700;")
+                if card:
+                    card.setStyleSheet("""
+                        QFrame {
+                            background-color: #F0F9FF;
+                            border: 1.5px solid #0284C7;
+                            border-radius: 8px;
+                        }
+                    """)
+            else:
+                if status_badge:
+                    status_badge.setText("Default")
+                    status_badge.setStyleSheet("color: #94A3B8; font-size: 10px; font-weight: 500;")
+                if card:
+                    card.setStyleSheet("""
+                        QFrame {
+                            background-color: #FFFFFF;
+                            border: 1px solid #E2E8F0;
+                            border-radius: 8px;
+                        }
+                    """)
+
+        self._is_updating_ui = False
+
+    def _reset_mappings_to_default(self):
+        self.current_profile.button_mapping = {b: b for b in CONTROLLER_BUTTONS}
+        self._sync_remap_ui()
+        if self._engine and self._engine.running:
+            self._engine.update_config(self._get_engine_config())
+        self.status_bar.setText(f"Reset all 16 buttons to default 1:1 mapping.")
 
     def _load_profile_into_ui(self, profile: GameProfile):
-        for btn, combo in self._dropdowns.items():
-            target = profile.button_mapping.get(btn, btn)
-            combo.blockSignals(True)
-            combo.setCurrentText(target)
-            combo.blockSignals(False)
-            action_desc = profile.button_actions.get(target, target)
-            if btn in self._action_labels:
-                self._action_labels[btn].setText(f"Action: {action_desc}")
+        profile.button_mapping = sanitize_mapping(profile.button_mapping)
+        self.current_profile = profile
+        self._sync_remap_ui()
 
         self.macro_table.setRowCount(0)
         for m in profile.macros:
@@ -466,8 +619,6 @@ class WitcherRemapperUI(QMainWindow):
             self._engine.update_config(self._get_engine_config())
 
     def _save_current_profile(self):
-        new_map = {btn: combo.currentText() for btn, combo in self._dropdowns.items()}
-        self.current_profile.button_mapping = new_map
         self.profile_mgr.save_profile(self.current_profile)
         self.status_bar.setText(f"✓ Configuration for '{self.current_profile.name}' saved permanently.")
 
@@ -567,10 +718,9 @@ class WitcherRemapperUI(QMainWindow):
 
     # ─── Engine Execution & HidHide ─────────────────────────────────
     def _get_engine_config(self) -> EngineConfig:
-        mapping = {b: combo.currentText() for b, combo in self._dropdowns.items()}
         return EngineConfig(
-            button_mapping=mapping,
-            macros=self.current_profile.macros
+            button_mapping=dict(self.current_profile.button_mapping),
+            macros=list(self.current_profile.macros)
         )
 
     def _toggle_engine(self):
