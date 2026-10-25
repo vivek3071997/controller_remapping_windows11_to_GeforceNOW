@@ -1,10 +1,7 @@
 """
-main.py / witcher_remapper.py – Dual UI Universal Entry Point
-=============================================================
-Supports:
-  1. Desktop Native GUI (PyQt6) -> Default or via: `python witcher_remapper.py --desktop`
-  2. Browser Web Dashboard (Flask) -> via: `python witcher_remapper.py --web`
-  3. Combined Dual UI Mode (Runs Web Server in background + launches Desktop GUI) -> via: `python witcher_remapper.py --all`
+witcher_remapper.py – GeForce NOW Controller Remapper PC Entry Point
+=====================================================================
+Local Input Interception & Macro System for GeForce NOW on PC.
 """
 
 import sys

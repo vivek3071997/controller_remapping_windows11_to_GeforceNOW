@@ -1,6 +1,6 @@
-# Apex Universal Controller Remapper for GeForce NOW & PC Games
+# GeForce NOW Controller Remapper PC
 
-An advanced, low-latency Windows controller remapper and macro engine built for cloud gaming (NVIDIA GeForce NOW) and native PC gaming. It intercepts raw gamepad inputs (XInput/DirectInput), maps them dynamically through custom per-game profiles, executes double-tap and multi-button combination macros, and streams inputs to a virtual Xbox 360 controller via the ViGEmBus driver.
+An advanced, low-latency Windows controller remapper and macro engine built specifically for cloud gaming (**NVIDIA GeForce NOW**) and native PC gaming. It intercepts raw gamepad inputs (XInput/DirectInput), maps them dynamically through custom per-game profiles, executes double-tap and multi-button combination macros, and streams inputs to a virtual Xbox 360 controller via the ViGEmBus driver.
 
 ---
 

@@ -1,6 +1,6 @@
 """
-web_server.py – Web-Based Management UI & REST API for Apex Remapper
-====================================================================
+web_server.py – Web-Based Management UI & REST API for GeForce NOW Controller Remapper PC
+========================================================================================
 Serves a responsive modern Web Dashboard accessible from any browser
 (http://localhost:5000), allowing full control over game profiles,
 1:1 button remaps, combo/double-tap macros, and live remapper engine control.
@@ -43,7 +43,7 @@ HTML_DASHBOARD = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apex Controller Remapper — Web Dashboard</title>
+    <title>GeForce NOW Controller Remapper PC — Web Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -311,7 +311,7 @@ HTML_DASHBOARD = """
 
 <header>
     <div class="brand">
-        <span>🎮</span> APEX CONTROLLER REMAPPER
+        <span>🎮</span> GEFORCE NOW CONTROLLER REMAPPER PC
     </div>
     <div class="engine-actions">
         <label class="hidhide-toggle">
@@ -666,7 +666,7 @@ def toggle_engine():
     return jsonify({"success": True})
 
 def start_web_server(port: int = 5000):
-    print(f"[*] Starting Apex Controller Remapper Web UI at http://localhost:{port}")
+    print(f"[*] Starting GeForce NOW Controller Remapper PC Web UI at http://localhost:{port}")
     app.run(host="127.0.0.1", port=port, debug=False)
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ jobs:
 
     - name: Build standalone Windows Executable
       run: |
-        pyinstaller --noconfirm --onedir --windowed --name "ApexControllerRemapper" `
+        pyinstaller --noconfirm --onedir --windowed --name "GeForceNOWControllerRemapperPC" `
           --add-data "constants.py;." `
           --add-data "profiles.py;." `
           --add-data "engine.py;." `
@@ -40,5 +40,5 @@ jobs:
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ApexControllerRemapper-Windows
-        path: dist/ApexControllerRemapper/
+        name: GeForceNOWControllerRemapperPC-Windows
+        path: dist/GeForceNOWControllerRemapperPC/

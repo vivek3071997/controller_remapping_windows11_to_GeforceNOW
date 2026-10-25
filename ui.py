@@ -184,7 +184,7 @@ class WitcherRemapperUI(QMainWindow):
         self._init_ui()
 
     def _init_ui(self):
-        self.setWindowTitle("Apex Controller Remapper — Universal Game Profiles & Macros")
+        self.setWindowTitle("GeForce NOW Controller Remapper PC")
         self.setMinimumSize(1150, 720)
         self.setStyleSheet(THEME_QSS)
 
@@ -196,7 +196,7 @@ class WitcherRemapperUI(QMainWindow):
         # ─── Top Bar: App Status & Controls ──────────────────────────
         top_bar = QHBoxLayout()
 
-        app_title = QLabel("🎮 APEX REMAPPER")
+        app_title = QLabel("🎮 GEFORCE NOW CONTROLLER REMAPPER PC")
         app_title.setStyleSheet("font-size: 16px; font-weight: 800; color: #63B3ED; letter-spacing: 1px;")
 
         self.chk_hidhide = QCheckBox("Prevent Double Input via HidHide")
