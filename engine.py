@@ -159,6 +159,10 @@ class RemapperEngine(threading.Thread):
             f"Active -- intercepting '{joy.get_name()}' -> Virtual Xbox 360"
         )
 
+        # Prime the event queue to calibrate resting axis positions
+        pygame.event.pump()
+        time.sleep(0.05)
+
         while self.running:
             pygame.event.pump()
             cfg = self._get_config()
